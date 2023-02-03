@@ -16,7 +16,6 @@ from dissect.eventlog.evt import Evt
 
 @pytest.mark.parametrize("log_filename", ["data/TestLog.evt", "data/TestLog-dirty.evt"])
 def test_evt_parsing(get_absolute_path, log_filename):
-
     file_path = get_absolute_path(log_filename)
 
     with open(file_path, "rb") as fh:

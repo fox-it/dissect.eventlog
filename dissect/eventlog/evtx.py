@@ -140,7 +140,6 @@ class Evtx:
             self.fh.read(skip)
 
         while True:
-
             chunk = self.fh.read(0x10000)
             if len(chunk) != 0x10000:
                 break

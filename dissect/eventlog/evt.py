@@ -154,7 +154,6 @@ class Evt:
         last_pos = -1
 
         while True:
-
             pos = fh.tell()
 
             if pos == last_pos:
