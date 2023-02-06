@@ -2,16 +2,17 @@
 
 
 import binascii
-from typing import Any, BinaryIO, Dict, List, Tuple
 import uuid
 from datetime import datetime
-from io import BytesIO
 from enum import IntEnum
+from io import BytesIO
+from typing import Any, BinaryIO, Dict, List, Tuple
 
 from dissect.cstruct.cstruct import cstruct
+from dissect.util.ts import wintimestamp
+
 from dissect.eventlog.exceptions import BxmlException
 from dissect.eventlog.utils import KeyValueCollection
-from dissect.util.ts import wintimestamp
 
 
 class BxmlToken(IntEnum):

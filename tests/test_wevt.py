@@ -1,7 +1,8 @@
-from dissect.eventlog.exceptions import UnknownSignatureException
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+
+from dissect.eventlog.exceptions import UnknownSignatureException
 from dissect.eventlog.wevt import MAPS_WEVT_TYPE, TTBL_WEVT_TYPE, WEVT, WEVT_TYPE
 
 WEVT_HEADER = (

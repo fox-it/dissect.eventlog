@@ -1,9 +1,10 @@
-from dissect.eventlog.exceptions import BxmlException
 from io import BytesIO
-from dissect.eventlog.bxml import BxmlToken, Bxml
+from unittest.mock import Mock, patch
+
 import pytest
 
-from unittest.mock import Mock, patch
+from dissect.eventlog.bxml import Bxml, BxmlToken
+from dissect.eventlog.exceptions import BxmlException
 
 
 @pytest.mark.parametrize(

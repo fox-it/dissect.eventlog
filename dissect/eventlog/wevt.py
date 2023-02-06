@@ -1,10 +1,10 @@
-from dissect.eventlog.exceptions import UnknownSignatureException
 from io import BufferedReader
 from uuid import UUID
 
-import dissect.eventlog.wevt_object as wevt_objects
-
 from dissect.cstruct import cstruct
+
+import dissect.eventlog.wevt_object as wevt_objects
+from dissect.eventlog.exceptions import UnknownSignatureException
 
 header_dev = """
 struct Event_Descriptor {
