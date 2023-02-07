@@ -1,11 +1,10 @@
-import pytest
+from unittest.mock import call, patch
 
-from unittest.mock import patch, call
+import pytest
 
 from dissect.eventlog import wevt_object
 
 from ._utils import TEMP_HEADER, create_data_item, create_header_type
-
 
 signatures = ["CHAN", "OPCO", "LEVL", "KEYW"]
 

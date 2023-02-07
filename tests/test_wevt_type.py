@@ -1,16 +1,18 @@
-from dissect.eventlog.exceptions import UnknownSignatureException
-from dissect.eventlog.wevt import WEVT_TYPE, TTBL_WEVT_TYPE, MAPS_WEVT_TYPE
-from dissect.eventlog.wevt_object import WevtObject
 from unittest.mock import Mock, patch
+
 import pytest
 
+from dissect.eventlog.exceptions import UnknownSignatureException
+from dissect.eventlog.wevt import MAPS_WEVT_TYPE, TTBL_WEVT_TYPE, WEVT_TYPE
+from dissect.eventlog.wevt_object import WevtObject
+
 from ._utils import (
-    TTBL_HEADER,
-    CHAN_HEADER,
     CHAN_DATA,
+    CHAN_HEADER,
     TEMP_HEADER,
-    create_header,
+    TTBL_HEADER,
     create_data_item,
+    create_header,
     create_header_type,
 )
 

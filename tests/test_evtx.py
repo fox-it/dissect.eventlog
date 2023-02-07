@@ -1,6 +1,5 @@
 from dissect.eventlog.evtx import Evtx
 
-
 # $rawData = [System.Text.Encoding]::Unicode.GetBytes("Test Binary Data")
 
 # New-EventLog -Source TestAppX -LogName TestLogX

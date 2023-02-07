@@ -1,8 +1,9 @@
-from dissect.eventlog.exceptions import UnknownSignatureException
-from dissect.eventlog.wevt import CRIM
 from unittest.mock import patch
 
 import pytest
+
+from dissect.eventlog.exceptions import UnknownSignatureException
+from dissect.eventlog.wevt import CRIM
 
 CRIM_HEADER = (
     b"\x43\x52\x49\x4D\xF8\x1B\x07\x00\x05\x00\x01\x00\x01\x00\x00\x00"
