@@ -5,13 +5,11 @@ import struct
 from collections import namedtuple
 from datetime import datetime, timezone
 
-from dissect import cstruct
+from dissect.cstruct import cstruct
 
 from dissect.eventlog.exceptions import Error
 
-c_evt = cstruct.cstruct()
-c_evt.load(
-    """
+evt_def = """
 #define ELF_LOGFILE_HEADER_DIRTY    0x0001
 #define ELF_LOGFILE_HEADER_WRAP     0x0002
 #define ELF_LOGFILE_LOGFULL_WRITTEN 0x0004
@@ -64,7 +62,8 @@ typedef struct _EVENTLOGEOF {
     ULONG   RecordSizeEnd;
 } EVENTLOGEOF;
 """
-)
+
+c_evt = cstruct().load(evt_def)
 
 EVENTLOGRECORD_SIZE = len(c_evt.EVENTLOGRECORD)
 

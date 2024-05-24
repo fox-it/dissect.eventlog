@@ -70,8 +70,9 @@ def test_wevt_test_offset(value, expected_result, mocked_fh):
 def test_wevt_test_iterator(_, mocked_fh):
     with patch.object(WEVT, WEVT._next_type_offset.__name__):
         wevt = create_wevt(mocked_fh)
-        for index, _ in enumerate(wevt):
-            wevt._next_type_offset.assert_called_with(wevt.payload_types[index].offset)
+        with patch("dissect.cstruct.types.char.Char._read_array"):
+            for index, _ in enumerate(wevt):
+                wevt._next_type_offset.assert_called_with(wevt.payload_types[index].offset)
 
 
 @pytest.mark.parametrize(

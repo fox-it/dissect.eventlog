@@ -1,5 +1,4 @@
-""" Binary XML classes """
-
+"""Binary XML classes"""
 
 import binascii
 import uuid
@@ -8,7 +7,7 @@ from enum import IntEnum
 from io import BytesIO
 from typing import Any, BinaryIO, Dict, List, Tuple
 
-from dissect.cstruct.cstruct import cstruct
+from dissect.cstruct import cstruct
 from dissect.util.ts import wintimestamp
 
 from dissect.eventlog.exceptions import BxmlException
@@ -146,8 +145,7 @@ struct SYSTEMTIME {
     WORD wMilliseconds;
 };
 """
-bxml_struct = cstruct()
-bxml_struct.load(bxml_def)
+bxml_struct = cstruct().load(bxml_def)
 
 
 def read_systemtime(stream):
@@ -198,9 +196,9 @@ TYPE_READERS = {
     BxmlType.BINARY: lambda stream: binascii.hexlify(stream.read()),
     BxmlType.GUID: read_guid,
     BxmlType.SIZET: (
-        lambda stream: f"0x{bxml_struct.uint32(stream):x}"
-        if len(stream.getvalue()) == 4
-        else f"0x{bxml_struct.uint64(stream):x}"
+        lambda stream: (
+            f"0x{bxml_struct.uint32(stream):x}" if len(stream.getvalue()) == 4 else f"0x{bxml_struct.uint64(stream):x}"
+        )
     ),
     BxmlType.FILETIME: lambda stream: wintimestamp(bxml_struct.uint64(stream)),
     BxmlType.SYSTEMTIME: lambda stream: read_systemtime(stream),

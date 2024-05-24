@@ -1,10 +1,10 @@
 from dissect.cstruct import cstruct
 
-from dissect.eventlog.wevt import header_dev
+from dissect.eventlog.wevt import header_def
 from dissect.eventlog.wevt_object import wevt_object_def
 
 definitions = cstruct()
-definitions.load(header_dev + wevt_object_def)
+definitions.load(header_def + wevt_object_def)
 
 
 def create_header(type, **kwargs):
