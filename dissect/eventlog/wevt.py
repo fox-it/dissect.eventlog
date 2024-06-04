@@ -6,7 +6,7 @@ from dissect.cstruct import cstruct
 import dissect.eventlog.wevt_object as wevt_objects
 from dissect.eventlog.exceptions import UnknownSignatureException
 
-header_dev = """
+header_def = """
 struct Event_Descriptor {
     char      ProviderId[16];
     uint32    offset;
@@ -40,8 +40,7 @@ struct WEVT_TYPE {
 };
 """
 
-c_wevt_headers = cstruct()
-c_wevt_headers.load(header_dev)
+c_wevt_headers = cstruct().load(header_def)
 
 
 def validate_signature(signature, expected_signature):
@@ -120,7 +119,7 @@ class WEVT:
         return self.header.size
 
     def __repr__(self):
-        return f"<WEVT providerid={self.provider_id} payload_size={self.payload_size} header={self.header}>"
+        return f"<WEVT provider_id={self.provider_id} payload_size={self.payload_size} header={self.header}>"
 
 
 class WEVT_TYPE:

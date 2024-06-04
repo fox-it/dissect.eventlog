@@ -20,47 +20,47 @@ struct CHAN {
 };
 
 struct TEMP {
-    char          signature[4];
-    uint32        size;
-    uint32        nr_of_items;
-    uint32        nr_of_names;
-    uint32        data_offset;
-    uint32        binxml_fragments;
-    char          identifier[16];
+    char    signature[4];
+    uint32  size;
+    uint32  nr_of_items;
+    uint32  nr_of_names;
+    uint32  data_offset;
+    uint32  binxml_fragments;
+    char    identifier[16];
 };
 
 struct TEMP_DESCRIPTOR {
-    uint32        unknown0;
-    uint8         input_type;
-    uint8         output_type;
-    uint16        unknown1;
-    uint32        unknown2;
-    uint32        unknown3;
-    uint32        data_offset;
+    uint32  unknown0;
+    uint8   input_type;
+    uint8   output_type;
+    uint16  unknown1;
+    uint32  unknown2;
+    uint32  unknown3;
+    uint32  data_offset;
 }
 
 struct PRVA {
-    uint32        unknown;
-    uint32        data_offset;
+    uint32  unknown;
+    uint32  data_offset;
 };
 
 struct TASK {
-    uint32        id;
-    uint32        message_table_id;
-    char          mui_id[16];
-    uint32        data_offset;
+    uint32  id;
+    uint32  message_table_id;
+    char    mui_id[16];
+    uint32  data_offset;
 };
 
 struct KEYW {
-    uint64        bitmask;
-    uint32        message_table_id;
-    uint32        data_offset;
+    uint64  bitmask;
+    uint32  message_table_id;
+    uint32  data_offset;
 };
 
 struct LEVL {
-    uint32        id;
-    uint32        message_table_id;
-    uint32        data_offset;
+    uint32  id;
+    uint32  message_table_id;
+    uint32  data_offset;
 };
 
 struct EVNT {
@@ -101,8 +101,7 @@ struct BMAP {
 };
 """
 
-wevt_objects = cstruct()
-wevt_objects.load(wevt_object_def)
+c_wevt_objects = cstruct().load(wevt_object_def)
 
 
 class WevtObject:
@@ -110,7 +109,7 @@ class WevtObject:
 
     def __init__(self, offset, data):
         self.offset = offset
-        self.header = getattr(wevt_objects, self.__class__.__name__)(data)
+        self.header = getattr(c_wevt_objects, self.__class__.__name__)(data)
         self.data = data[len(self.header) :]
         self.data_start = self.offset + len(self.header)
         self.data_offset = self.header.data_offset - self.data_start
@@ -118,7 +117,7 @@ class WevtObject:
     def extract_name(self, data_offset):
         """data_offset is a relative offset that usually points to the data_item.
         This point is used to read the name for this specific"""
-        return wevt_objects.DATA_ITEM(self.data[data_offset:]).name.rstrip("\x00")
+        return c_wevt_objects.DATA_ITEM(self.data[data_offset:]).name.rstrip("\x00")
 
     def __getattribute__(self, name: str):
         try:

@@ -5,7 +5,7 @@ import io
 import logging
 import os
 
-from dissect import cstruct
+from dissect.cstruct import cstruct
 
 from dissect.eventlog.bxml import Bxml, BxmlSub, EvtxNameReader, parse_bxml
 from dissect.eventlog.exceptions import MalformedElfChnkException
@@ -13,9 +13,7 @@ from dissect.eventlog.exceptions import MalformedElfChnkException
 log = logging.getLogger(__name__)
 log.setLevel(os.getenv("DISSECT_LOG_EVTX", "CRITICAL"))
 
-evtx = cstruct.cstruct()
-evtx.load(
-    """
+evtx_def = """
 struct EVTX_HEADER {
     char magic[8];
     uint64 first_chunk;
@@ -57,14 +55,15 @@ struct EVTX_RECORD {
     uint32 size_copy;
 };
 """
-)
+
+c_evtx = cstruct().load(evtx_def)
 
 
 class ElfChnk:
     def __init__(self, d, path=None):
         self.path = path
         self.stream = io.BytesIO(d)
-        self.header = evtx.EVTX_CHUNK(self.stream)
+        self.header = c_evtx.EVTX_CHUNK(self.stream)
 
         if self.header.magic != b"ElfChnk\x00":
             if self.header.magic != b"\x00\x00\x00\x00\x00\x00\x00\x00":
@@ -83,7 +82,7 @@ class ElfChnk:
             while True:
                 offset = self.stream.tell()
                 try:
-                    r = evtx.EVTX_RECORD(self.stream)
+                    r = c_evtx.EVTX_RECORD(self.stream)
                 except EOFError:
                     break
 
@@ -129,13 +128,13 @@ class Evtx:
     def __init__(self, fh, path=None):
         self.path = path
         self.fh = fh
-        self.header = evtx.EVTX_HEADER(self.fh)
+        self.header = c_evtx.EVTX_HEADER(self.fh)
         self.count = 0
 
     def __iter__(self):
         chunk_offset = self.header.header_block_size
 
-        skip = self.header.header_block_size - len(evtx.EVTX_HEADER)
+        skip = self.header.header_block_size - len(c_evtx.EVTX_HEADER)
         if skip > 0:
             self.fh.read(skip)
 
