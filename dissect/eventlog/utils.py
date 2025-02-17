@@ -1,4 +1,6 @@
 class KeyValueCollection(dict):
+    """Eventlog key-value pair collection."""
+
     def __init__(self):
         super().__init__()
         self.idx = {}
