@@ -12,7 +12,7 @@ from dissect.eventlog.evtx import Evtx
 
 
 def test_evtx_parsing(get_absolute_path):
-    log_file_path = get_absolute_path("data/TestLogX.evtx")
+    log_file_path = get_absolute_path("_data/TestLogX.evtx")
 
     with open(log_file_path, "rb") as f:
         records = list(Evtx(f))
