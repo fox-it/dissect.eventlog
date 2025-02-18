@@ -14,7 +14,7 @@ from dissect.eventlog.evt import Evt
 # Write-EventLog -Source TestApp -LogName TestLogX -Category 1 -EntryType SuccessAudit -EventId 5 -entry "Test log entry, success audit" -RawData $rawData2  # noqa
 
 
-@pytest.mark.parametrize("log_filename", ["data/TestLog.evt", "data/TestLog-dirty.evt"])
+@pytest.mark.parametrize("log_filename", ["_data/TestLog.evt", "_data/TestLog-dirty.evt"])
 def test_evt_parsing(get_absolute_path, log_filename):
     file_path = get_absolute_path(log_filename)
 
