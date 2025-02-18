@@ -1,5 +1,14 @@
 class KeyValueCollection(dict):
-    """Eventlog key-value pair collection."""
+    """A dictionary subclass that handles setting duplicate keys by appending an index number to the duplicate key.
+
+    Example:
+
+        >>>  d = KeyValueCollection()
+        >>>  d["foo"] = "bar"
+        >>>  d["foo"] = "baz"  # Duplicate key
+        >>>  d
+        {'foo': 'bar', 'foo_1': 'baz'}
+    """
 
     def __init__(self):
         super().__init__()
