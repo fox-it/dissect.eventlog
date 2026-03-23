@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import struct
 from datetime import datetime, timezone
-from typing import NamedTuple, Any
+from typing import Any, NamedTuple
 
 from dissect.cstruct import cstruct
 from dissect.eventlog.exceptions import Error
@@ -269,8 +269,7 @@ def parse_record(record, buf):
     fields = []
     if record.StringOffset > 0:
         buf.seek(record_start + record.StringOffset)
-        for _ in range(record.NumStrings):
-            fields.append(c_evt.wchar[None](buf))
+        fields = [c_evt.wchar[None](buf) for _ in range(record.NumStrings)]
 
     data = b""
     if record.DataLength > 0:
@@ -305,9 +304,9 @@ def reprsid(s):
         r = "S-" + str(ord(s[0])) + "-" + str(ord(s[1])) + "-" + str(c_evt.uint48(s[2:8]))
         for i in range(8, len(s), 4):
             r += "-" + str(struct.unpack(">I", s[i : i + 4])[0])
-        return r
     except Exception:
         return "S-?"
+    return r
 
 
 def is_eof_record(record):

@@ -152,7 +152,7 @@ bxml_struct = cstruct().load(bxml_def)
 def read_systemtime(stream):
     """Read systemtime from stream."""
     st = bxml_struct.SYSTEMTIME(stream)
-    return datetime(
+    return datetime(  # noqa: DTZ001
         year=st.wYear,
         month=st.wMonth,
         day=st.wDay,
@@ -668,7 +668,9 @@ def _read_descriptor_value(bxml: Bxml, descriptor: BxmlTemplateDescriptor) -> An
 
 
 def read_value(binxml: Bxml, descriptor: BxmlTemplateDescriptor, template: Template) -> Any:
-    """0x00 NullType NULL or empty
+    """Read a value from a bxml node.
+
+    0x00 NullType NULL or empty
     0x01 StringType Unicode string
     0x02 AnsiStringType ASCII string
     0x03 Int8Type 8-bit integer signed
@@ -692,7 +694,7 @@ def read_value(binxml: Bxml, descriptor: BxmlTemplateDescriptor, template: Templ
     0x15 HexInt64Type 64-bit integer hexadecimal
     0x20 EvtHandle
     0x21 BinXmlType Binary XML fragment
-    0x23 EvtXml.
+    0x23 EvtXml
     """
     if descriptor.has_type_reader:
         data = binxml.bxml_stream.read(descriptor.size)

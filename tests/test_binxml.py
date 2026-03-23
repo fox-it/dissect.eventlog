@@ -102,7 +102,7 @@ def test_read_children(mocked_token, side_effects, expected_length):
     assert len(children) == expected_length
 
 
-@pytest.mark.parametrize("bxml_data,expected_output", [(b"\x01\x01", "101"), (b"\xDE\xAD\xBE\xEF", "adde")])
+@pytest.mark.parametrize("bxml_data,expected_output", [(b"\x01\x01", "101"), (b"\xde\xad\xbe\xef", "adde")])
 def text_bxml_char_reference(bxml_data, expected_output):
     bxml_obj = Bxml(bxml_data, None)
     assert bxml_obj.read_char_reference() == "&x" + expected_output
