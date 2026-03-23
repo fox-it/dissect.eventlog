@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 from io import BufferedReader
 from uuid import UUID
 
-from dissect.cstruct import cstruct
-
 import dissect.eventlog.wevt_object as wevt_objects
+from dissect.cstruct import cstruct
 from dissect.eventlog.exceptions import UnknownSignatureException
 
 header_def = """
@@ -45,7 +46,7 @@ c_wevt_headers = cstruct().load(header_def)
 
 def validate_signature(signature, expected_signature):
     if signature != expected_signature:
-        raise UnknownSignatureException(f"Invalid {str(expected_signature)}")
+        raise UnknownSignatureException(f"Invalid {expected_signature!s}")
 
 
 class CRIM:
@@ -123,8 +124,7 @@ class WEVT:
 
 
 class WEVT_TYPE:
-    """
-    A wrapper that is used to create a wevt_object.
+    """A wrapper that is used to create a wevt_object.
     This class assigns this object the correct offset value
     and passes the size of the data.
     """
@@ -184,6 +184,7 @@ class MAPS_WEVT_TYPE(WEVT_TYPE):
             return wevt_objects.VMAP
         if signature == b"BMAP":
             return wevt_objects.BMAP
+        return None
 
 
 class TTBL_WEVT_TYPE(WEVT_TYPE):

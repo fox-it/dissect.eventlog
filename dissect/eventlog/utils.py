@@ -1,8 +1,10 @@
+from __future__ import annotations
+
+
 class KeyValueCollection(dict):
     """A dictionary subclass that handles setting duplicate keys by appending an index number to the duplicate key.
 
     Example:
-
         >>>  d = KeyValueCollection()
         >>>  d["foo"] = "bar"
         >>>  d["foo"] = "baz"  # Duplicate key

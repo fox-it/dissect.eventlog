@@ -1,12 +1,13 @@
 # https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-eventlogrecord
 # https://github.com/libyal/libevt/blob/main/documentation/Windows%20Event%20Log%20(EVT)%20format.asciidoc
+from __future__ import annotations
+
 import io
 import struct
 from collections import namedtuple
 from datetime import datetime, timezone
 
 from dissect.cstruct import cstruct
-
 from dissect.eventlog.exceptions import Error
 
 evt_def = """
@@ -325,8 +326,7 @@ def is_header_record(record):
 
 
 def parse_chunk(chunk):
-    """
-    Requires a chunk that starts with EVENTLOGRECORD header
+    """Requires a chunk that starts with EVENTLOGRECORD header
     """
     buffer = io.BytesIO(chunk)
     record = c_evt.EVENTLOGRECORD(buffer)

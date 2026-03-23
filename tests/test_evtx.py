@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dissect.eventlog.evtx import Evtx
 
 # $rawData = [System.Text.Encoding]::Unicode.GetBytes("Test Binary Data")

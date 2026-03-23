@@ -1,17 +1,17 @@
 """Binary XML classes"""
+from __future__ import annotations
 
 import binascii
 import uuid
 from datetime import datetime
 from enum import IntEnum
 from io import BytesIO
-from typing import Any, BinaryIO, Dict, List, Tuple
+from typing import Any, BinaryIO
 
 from dissect.cstruct import cstruct
-from dissect.util.ts import wintimestamp
-
 from dissect.eventlog.exceptions import BxmlException
 from dissect.eventlog.utils import KeyValueCollection
+from dissect.util.ts import wintimestamp
 
 
 class BxmlToken(IntEnum):
@@ -255,10 +255,10 @@ class BxmlSub:
 
 class Template:
     def __init__(self):
-        self.subs: Dict[int, BxmlSub] = {}
+        self.subs: dict[int, BxmlSub] = {}
         self.mapping = {}
         self.element = None
-        self.child_templates: List[Template] = []
+        self.child_templates: list[Template] = []
 
     def __str__(self):
         return str(self.element)
@@ -347,7 +347,7 @@ class Bxml:
         self.elf_chunk_stream = elf_chunk_stream
         self.data_offset: int = None
         self.template: Template = None
-        self.templates: Dict[Template] = None
+        self.templates: dict[Template] = None
 
     @property
     def current_offset(self) -> int:
@@ -367,30 +367,29 @@ class Bxml:
 
         if token == BxmlToken.BXML_END:
             return BxmlToken.BXML_END
-        elif token == BxmlToken.BXML_START_ELEMENT:
+        if token == BxmlToken.BXML_START_ELEMENT:
             return self.parse_start_element(token.has_more, template)
-        elif token == BxmlToken.BXML_CLOSE_START_ELEMENT_TAG:
+        if token == BxmlToken.BXML_CLOSE_START_ELEMENT_TAG:
             return BxmlToken.BXML_CLOSE_START_ELEMENT_TAG
-        elif token == BxmlToken.BXML_CLOSE_EMPTY_ELEMENT_TAG:
+        if token == BxmlToken.BXML_CLOSE_EMPTY_ELEMENT_TAG:
             return BxmlToken.BXML_CLOSE_EMPTY_ELEMENT_TAG
-        elif token == BxmlToken.BXML_END_ELEMENT:
+        if token == BxmlToken.BXML_END_ELEMENT:
             return BxmlToken.BXML_END_ELEMENT
-        elif token == BxmlToken.BXML_VALUE:
+        if token == BxmlToken.BXML_VALUE:
             return self.read_value(token.has_more, template)
-        elif token == BxmlToken.BXML_ATTRIBUTE:
+        if token == BxmlToken.BXML_ATTRIBUTE:
             return self.read_attribute(template)
-        elif token == BxmlToken.BXML_TOKEN_CHAR_REFERENCE:
+        if token == BxmlToken.BXML_TOKEN_CHAR_REFERENCE:
             return self.read_char_reference()
-        elif token == BxmlToken.BXML_TOKEN_ENTITY_REFERENCE:
+        if token == BxmlToken.BXML_TOKEN_ENTITY_REFERENCE:
             return self.read_entity_reference(token.has_more, template)
-        elif token == BxmlToken.BXML_TEMPLATE_INSTANCE:
+        if token == BxmlToken.BXML_TEMPLATE_INSTANCE:
             return self.read_template_instance()
-        elif token == BxmlToken.BXML_TOKEN_NORMAL_SUBSTITUTION or token == BxmlToken.BXML_TOKEN_OPTIONAL_SUBSTITUTION:
+        if token == BxmlToken.BXML_TOKEN_NORMAL_SUBSTITUTION or token == BxmlToken.BXML_TOKEN_OPTIONAL_SUBSTITUTION:
             return self.substitute_token_and_add_to_template(template)
-        elif token == BxmlToken.BXML_FRAGMENT_HEADER:
+        if token == BxmlToken.BXML_FRAGMENT_HEADER:
             return self.read_fragment_header()
-        else:
-            raise BxmlException(f"Unknown BXML token {token}")
+        raise BxmlException(f"Unknown BXML token {token}")
 
     def parse_start_element(self, more_data: bool, template: Template) -> BxmlTag:
         if template:
@@ -418,7 +417,7 @@ class Bxml:
             tag.add_attributes(attributes)
         return tag
 
-    def _read_attributes(self, template: Template) -> Tuple[str, Any]:
+    def _read_attributes(self, template: Template) -> tuple[str, Any]:
         attr_size = bxml_struct.uint32(self.bxml_stream)
         attr_end = self.bxml_stream.tell() + attr_size
         while self.bxml_stream.tell() < attr_end:
@@ -460,7 +459,7 @@ class Bxml:
     def _is_end_start_element(self, next_tag: BxmlTag) -> bool:
         return next_tag is BxmlToken.BXML_CLOSE_START_ELEMENT_TAG
 
-    def _read_children(self, template) -> List[Any]:
+    def _read_children(self, template) -> list[Any]:
         while True:
             tag = self.read_token(template)
             if tag == BxmlToken.BXML_END_ELEMENT:
@@ -480,7 +479,7 @@ class Bxml:
 
         raise BxmlException(f"Unexpected value type 0x{value_type:x}")
 
-    def read_attribute(self, template: Template) -> Tuple[str, Any]:
+    def read_attribute(self, template: Template) -> tuple[str, Any]:
         name = self.read_name_from_stream()
         value = self.read_token(template)
         return name, value
@@ -532,7 +531,6 @@ class BxmlNameReader:
 
     def read(self) -> str:
         """Read the name from the bxml_datastream."""
-        pass
 
     def _read_and_validate_padding(self) -> None:
         """Determine if the padding after name equals 0"""
@@ -621,11 +619,10 @@ def parse_bxml(bxml: Bxml):
             key_collection = KeyValueCollection()
             Template()._get_map_recursive(token, [], key_collection)
             return key_collection
-        else:
-            if bxml.read_token() != BxmlToken.BXML_END:
-                pass
+        if bxml.read_token() != BxmlToken.BXML_END:
+            pass
 
-            return token.as_full_map()
+        return token.as_full_map()
 
 
 class BxmlTemplateDescriptor:
@@ -670,8 +667,7 @@ def _read_descriptor_value(bxml: Bxml, descriptor: BxmlTemplateDescriptor) -> An
 
 
 def read_value(binxml: Bxml, descriptor: BxmlTemplateDescriptor, template: Template) -> Any:
-    """
-    0x00 NullType NULL or empty
+    """0x00 NullType NULL or empty
     0x01 StringType Unicode string
     0x02 AnsiStringType ASCII string
     0x03 Int8Type 8-bit integer signed
@@ -697,7 +693,6 @@ def read_value(binxml: Bxml, descriptor: BxmlTemplateDescriptor, template: Templ
     0x21 BinXmlType Binary XML fragment
     0x23 EvtXml
     """
-
     if descriptor.has_type_reader:
         data = binxml.bxml_stream.read(descriptor.size)
         stream = BytesIO(data)
@@ -719,7 +714,7 @@ def read_value(binxml: Bxml, descriptor: BxmlTemplateDescriptor, template: Templ
     raise BxmlException(f"Unknown value type 0x{descriptor.type_id:x}")
 
 
-def read_descriptor_array(stream: BinaryIO, descriptor: BxmlTemplateDescriptor) -> List[Any]:
+def read_descriptor_array(stream: BinaryIO, descriptor: BxmlTemplateDescriptor) -> list[Any]:
     while stream.tell() != descriptor.size:
         yield descriptor.value_type(stream)
 

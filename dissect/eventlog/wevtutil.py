@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import string
 import subprocess
 import xml.etree.ElementTree as ET
 
 from dissect.eventlog.utils import KeyValueCollection
 
-CHAR_TRANSLATION = string.maketrans("".join(map(chr, range(0, 10))), "".join(map(str, range(0, 10))))
+CHAR_TRANSLATION = string.maketrans("".join(map(chr, range(10))), "".join(map(str, range(10))))
 
 
 class WevtutilWrapper:

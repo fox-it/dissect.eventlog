@@ -1,12 +1,12 @@
 # - http://download.microsoft.com/download/9/5/E/95EF66AF-9026-4BB0-A41D-A4F81802D92C/[MS-EVEN6].pdf
 # - https://github.com/libyal/libevtx/blob/main/documentation/Windows%20XML%20Event%20Log%20(EVTX).asciidoc
+from __future__ import annotations
 
 import io
 import logging
 import os
 
 from dissect.cstruct import cstruct
-
 from dissect.eventlog.bxml import Bxml, BxmlSub, EvtxNameReader, parse_bxml
 from dissect.eventlog.exceptions import MalformedElfChnkException
 

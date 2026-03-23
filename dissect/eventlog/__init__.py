@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dissect.eventlog.evt import Evt
 from dissect.eventlog.evtx import Evtx
 from dissect.eventlog.exceptions import (
@@ -10,10 +12,10 @@ from dissect.eventlog.wevt import CRIM
 
 __all__ = [
     "CRIM",
+    "BxmlException",
+    "Error",
     "Evt",
     "Evtx",
-    "Error",
-    "BxmlException",
     "MalformedElfChnkException",
     "UnknownSignatureException",
 ]

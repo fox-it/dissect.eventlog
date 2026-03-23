@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from unittest.mock import call, patch
 
 import pytest
-
 from dissect.eventlog import wevt_object
 
 from ._utils import TEMP_HEADER, create_data_item, create_header_type

@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from unittest.mock import patch
 
 import pytest
-
 from dissect.eventlog.exceptions import UnknownSignatureException
 from dissect.eventlog.wevt import CRIM
 

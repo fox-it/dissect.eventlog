@@ -1,5 +1,6 @@
-import pytest
+from __future__ import annotations
 
+import pytest
 from dissect.eventlog.evt import Evt
 
 # $rawData = [System.Text.Encoding]::Unicode.GetBytes("Test Binary Data")

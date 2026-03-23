@@ -1,5 +1,6 @@
-from dissect.cstruct import cstruct
+from __future__ import annotations
 
+from dissect.cstruct import cstruct
 from dissect.eventlog.wevt import header_def
 from dissect.eventlog.wevt_object import wevt_object_def
 

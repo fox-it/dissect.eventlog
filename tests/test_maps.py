@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from unittest.mock import patch
 
 from dissect.eventlog.wevt import MAPS_WEVT_TYPE
@@ -23,8 +25,7 @@ def test_maps_basic(mocked_map):
 
 
 def test_maps_different_dataoffset():
-    """
-    The structure of a VMAP WEVT_TYPE is just a bit different
+    """The structure of a VMAP WEVT_TYPE is just a bit different
     nr_of_items doesn't exist.
     """
     data_offset = 2000
