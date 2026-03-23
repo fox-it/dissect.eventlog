@@ -67,7 +67,7 @@ class ElfChnk:
 
         if self.header.magic != b"ElfChnk\x00":
             if self.header.magic != b"\x00\x00\x00\x00\x00\x00\x00\x00":
-                log.error(f"{self.path}: Bad ElfChnk magic")
+                log.error("%s: Bad ElfChnk magic", self.path)
 
             raise MalformedElfChnkException("Bad ElfChnk magic")
 
@@ -116,14 +116,14 @@ class ElfChnk:
                     continue
 
                 yield rec
-        except Exception as e:
+        except Exception:
             if not self.empty:
-                log.error(f"Exception when processing chunk: {e!r}")
-                raise MalformedElfChnkException()
+                log.exception("Exception when processing chunk")
+                raise MalformedElfChnkException
 
 
 class Evtx:
-    """Microsoft Event logs"""
+    """Microsoft Event logs."""
 
     def __init__(self, fh, path=None):
         self.path = path

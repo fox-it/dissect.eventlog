@@ -8,7 +8,7 @@ definitions = cstruct().load(header_def + wevt_object_def)
 
 
 def create_header(type, **kwargs):
-    """Create any header type in definitions"""
+    """Create any header type in definitions."""
     return getattr(definitions, type)(**kwargs)
 
 

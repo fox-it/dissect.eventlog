@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import io
 import struct
-from collections import namedtuple
 from datetime import datetime, timezone
+from typing import NamedTuple, Any
 
 from dissect.cstruct import cstruct
 from dissect.eventlog.exceptions import Error
@@ -68,34 +68,32 @@ c_evt = cstruct().load(evt_def)
 
 EVENTLOGRECORD_SIZE = len(c_evt.EVENTLOGRECORD)
 
-Record = namedtuple(
-    "Record",
-    [
-        "RecordNumber",
-        "TimeGenerated",
-        "TimeWritten",
-        "EventID",
-        "EventCode",
-        "EventFacility",
-        "EventCustomerFlag",
-        "EventSeverity",
-        "EventType",
-        "EventCategory",
-        "SourceName",
-        "Computername",
-        "UserSid",
-        "Strings",
-        "Data",
-        "record",
-    ],
-)
+
+class Record(NamedTuple):
+    RecordNumber: str
+    TimeGenerated: datetime
+    TimeWritten: datetime
+    EventID: int
+    EventCode: int
+    EventFacility: int
+    EventCustomerFlag: int
+    EventSeverity: int
+    EventType: str
+    EventCategory: str
+    SourceName: str
+    Computername: str | None
+    UserSid: str | None
+    Strings: list[str]
+    Data: bytes
+    record: Any
+
 
 BLOCK_SIZE = 4096
 DIRTY_NEEDLE = b"\x28\x00\x00\x00" + (b"\x11" * 4) + (b"\x22" * 4) + (b"\x33" * 4) + (b"\x44" * 4)
 
 
 class Evt:
-    """Windows Event files for WinOS up until Windows XP"""
+    """Windows Event files for WinOS up until Windows XP."""
 
     def __init__(self, fh):
         self.fh = fh
@@ -326,8 +324,7 @@ def is_header_record(record):
 
 
 def parse_chunk(chunk):
-    """Requires a chunk that starts with EVENTLOGRECORD header
-    """
+    """Requires a chunk that starts with EVENTLOGRECORD header."""
     buffer = io.BytesIO(chunk)
     record = c_evt.EVENTLOGRECORD(buffer)
     if is_eof_record(record) or is_header_record(record):

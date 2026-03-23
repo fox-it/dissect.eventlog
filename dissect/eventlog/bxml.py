@@ -1,4 +1,5 @@
-"""Binary XML classes"""
+"""Binary XML classes."""
+
 from __future__ import annotations
 
 import binascii
@@ -340,7 +341,7 @@ class Template:
 
 
 class Bxml:
-    """An object that keeps track of the BXML streams"""
+    """An object that keeps track of the BXML streams."""
 
     def __init__(self, bxml_stream: BytesIO, elf_chunk_stream: BytesIO) -> None:
         self.bxml_stream = bxml_stream
@@ -355,7 +356,7 @@ class Bxml:
         return self.data_offset + self.bxml_stream.tell()
 
     def read_name_from_stream(self) -> str:
-        """Use _reader to read a specific name from stream"""
+        """Use _reader to read a specific name from stream."""
         return self._reader.read()
 
     def set_name_reader(self, reader) -> None:
@@ -424,7 +425,7 @@ class Bxml:
             yield self.read_token(template)
 
     def _read_template_reference_and_data(self) -> Template:
-        """Read template reference and create a template"""
+        """Read template reference and create a template."""
         reference = bxml_struct.BXML_TEMPLATE_REFERENCE(self.bxml_stream)
 
         if reference.offset == self.current_offset:
@@ -533,7 +534,7 @@ class BxmlNameReader:
         """Read the name from the bxml_datastream."""
 
     def _read_and_validate_padding(self) -> None:
-        """Determine if the padding after name equals 0"""
+        """Determine if the padding after name equals 0."""
         padding = self.bxml_datastream.read(2)
         if padding != b"\x00\x00":
             raise BxmlException("No padding after BXML_NAME")
@@ -691,7 +692,7 @@ def read_value(binxml: Bxml, descriptor: BxmlTemplateDescriptor, template: Templ
     0x15 HexInt64Type 64-bit integer hexadecimal
     0x20 EvtHandle
     0x21 BinXmlType Binary XML fragment
-    0x23 EvtXml
+    0x23 EvtXml.
     """
     if descriptor.has_type_reader:
         data = binxml.bxml_stream.read(descriptor.size)

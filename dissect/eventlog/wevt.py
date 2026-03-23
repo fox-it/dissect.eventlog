@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from io import BufferedReader
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import dissect.eventlog.wevt_object as wevt_objects
 from dissect.cstruct import cstruct
 from dissect.eventlog.exceptions import UnknownSignatureException
+
+if TYPE_CHECKING:
+    from io import BufferedReader
 
 header_def = """
 struct Event_Descriptor {
@@ -51,7 +54,7 @@ def validate_signature(signature, expected_signature):
 
 class CRIM:
     """Start header of the WEVT_TEMPLATE
-    Holds the number of providers inside the template
+    Holds the number of providers inside the template.
     """
 
     def __init__(self, fh: BufferedReader):
@@ -65,7 +68,7 @@ class CRIM:
         return self.header.size
 
     def wevt_headers(self):
-        """Get the WEVT object for a specific provider"""
+        """Get the WEVT object for a specific provider."""
         for event_provider in self.header.event_providers:
             yield WEVT(event_provider, self.fh)
 
@@ -149,7 +152,7 @@ class WEVT_TYPE:
             offset += len(item.header)
 
     def _additional_offset(self):
-        """An additional offset for specific wevtobjects"""
+        """An additional offset for specific wevtobjects."""
         if self.signature == "EVNT":
             return 4
         return 0
@@ -164,7 +167,7 @@ class WEVT_TYPE:
 
 
 class MAPS_WEVT_TYPE(WEVT_TYPE):
-    """A specific MAPS type, that behaves differently from WEVT_TYPE
+    """A specific MAPS type, that behaves differently from WEVT_TYPE.
 
     The MAPS header holds the offsets of its object just behind its header in any order.
     """

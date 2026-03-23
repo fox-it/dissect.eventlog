@@ -105,7 +105,7 @@ c_wevt_objects = cstruct().load(wevt_object_def)
 
 
 class WevtObject:
-    """Base object that functions as a wrapper for the header"""
+    """Base object that functions as a wrapper for the header."""
 
     def __init__(self, offset, data):
         self.offset = offset
@@ -116,7 +116,7 @@ class WevtObject:
 
     def extract_name(self, data_offset):
         """data_offset is a relative offset that usually points to the data_item.
-        This point is used to read the name for this specific
+        This point is used to read the name for this specific.
         """
         return c_wevt_objects.DATA_ITEM(self.data[data_offset:]).name.rstrip("\x00")
 
@@ -128,7 +128,7 @@ class WevtObject:
         return getattr(self.header, name)
 
     def __repr__(self):
-        """Use __slots__ to get all the data we need from the object"""
+        """Use __slots__ to get all the data we need from the object."""
         output_data = [item + "=" + str(getattr(self, item)) for item in self.__slots__]
         return f"{self.__class__.__name__} {' '.join(output_data)}"
 
