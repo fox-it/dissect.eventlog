@@ -69,7 +69,7 @@ c_evt = cstruct().load(evt_def)
 EVENTLOGRECORD_SIZE = len(c_evt.EVENTLOGRECORD)
 
 # Should be refactored to a NamedTuple, but this requires fix all typing in the project
-Record = namedtuple( # noqa: PYI024
+Record = namedtuple(  # noqa: PYI024
     "Record",
     [
         "RecordNumber",
@@ -90,7 +90,6 @@ Record = namedtuple( # noqa: PYI024
         "record",
     ],
 )
-
 
 BLOCK_SIZE = 4096
 DIRTY_NEEDLE = b"\x28\x00\x00\x00" + (b"\x11" * 4) + (b"\x22" * 4) + (b"\x33" * 4) + (b"\x44" * 4)

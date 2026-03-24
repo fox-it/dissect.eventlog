@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import typing
+
 import pytest
 from dissect.eventlog.evt import Evt
+
+if typing.TYPE_CHECKING:
+    from pathlib import Path
 
 # $rawData = [System.Text.Encoding]::Unicode.GetBytes("Test Binary Data")
 # $rawData2 = [System.Text.Encoding]::Unicode.GetBytes("Test Binary Data 2")
@@ -17,9 +22,9 @@ from dissect.eventlog.evt import Evt
 
 @pytest.mark.parametrize("log_filename", ["_data/TestLog.evt", "_data/TestLog-dirty.evt"])
 def test_evt_parsing(get_absolute_path, log_filename):
-    file_path = get_absolute_path(log_filename)
+    file_path: Path = get_absolute_path(log_filename)
 
-    with open(file_path, "rb") as fh:
+    with file_path.open("rb") as fh:
         records = list(Evt(fh))
 
         assert len(records) == 5

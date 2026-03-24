@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-import os
+import typing
+from pathlib import Path
 
 import pytest
 
+if typing.TYPE_CHECKING:
+    from collections.abc import Callable
 
-def absolute_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
+
+def absolute_path(filename: str) -> Path:
+    return Path(__file__).parent.joinpath(filename).resolve()
 
 
 @pytest.fixture
-def get_absolute_path():
+def get_absolute_path() -> Callable[[str], Path]:
     def _absolute_path(filename):
         return absolute_path(filename)
 
