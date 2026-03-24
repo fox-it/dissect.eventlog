@@ -25,7 +25,7 @@ def test_offset(signature):
 
 @pytest.mark.parametrize("signature", signatures)
 @pytest.mark.parametrize(
-    "data_offset,expected_name",
+    ("data_offset", "expected_name"),
     [(0x42, "zaphod beeblebrox"), (0x200, "A test is now in session!")],
 )
 def test_name(signature, data_offset, expected_name):

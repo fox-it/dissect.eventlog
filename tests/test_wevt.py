@@ -49,7 +49,7 @@ def test_wevt_items(mocked_fh):
 
 
 @pytest.mark.parametrize(
-    "value,expected_result",
+    ("value", "expected_result"),
     [
         (0x3A8, 0x50),
         (0x4D8, 0x180),
@@ -77,7 +77,7 @@ def test_wevt_test_iterator(_, mocked_fh):
 
 
 @pytest.mark.parametrize(
-    "signature,object",
+    ("signature", "object"),
     [
         (b"TTBL", TTBL_WEVT_TYPE),
         (b"MAPS", MAPS_WEVT_TYPE),

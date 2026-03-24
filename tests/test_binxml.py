@@ -9,7 +9,7 @@ from dissect.eventlog.exceptions import BxmlException
 
 
 @pytest.mark.parametrize(
-    "token,mocked_method",
+    ("token", "mocked_method"),
     [
         (BxmlToken.BXML_START_ELEMENT, Bxml.parse_start_element),
         (BxmlToken.BXML_VALUE, Bxml.read_value),
@@ -28,7 +28,7 @@ def test_bxml_read_token(token, mocked_method):
 
 
 @pytest.mark.parametrize(
-    "token,expected_end",
+    ("token", "expected_end"),
     [
         (BxmlToken.BXML_END, BxmlToken.BXML_END),
         (BxmlToken.BXML_CLOSE_START_ELEMENT_TAG, BxmlToken.BXML_CLOSE_START_ELEMENT_TAG),
@@ -87,7 +87,7 @@ def test_read_tag_and_attributes_attributes(mocked_tag):
 
 
 @pytest.mark.parametrize(
-    "side_effects,expected_length",
+    ("side_effects", "expected_length"),
     [
         (["children_tag", BxmlToken.BXML_END_ELEMENT], 1),
         (["children_tag", "children_tag", BxmlToken.BXML_END_ELEMENT], 2),
@@ -102,7 +102,7 @@ def test_read_children(mocked_token, side_effects, expected_length):
     assert len(children) == expected_length
 
 
-@pytest.mark.parametrize("bxml_data,expected_output", [(b"\x01\x01", "101"), (b"\xde\xad\xbe\xef", "adde")])
+@pytest.mark.parametrize(("bxml_data", "expected_output"), [(b"\x01\x01", "101"), (b"\xde\xad\xbe\xef", "adde")])
 def text_bxml_char_reference(bxml_data, expected_output):
     bxml_obj = Bxml(bxml_data, None)
     assert bxml_obj.read_char_reference() == "&x" + expected_output
