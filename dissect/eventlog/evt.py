@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import io
 import struct
+from collections import namedtuple
 from datetime import datetime, timezone
-from typing import Any, NamedTuple
 
 from dissect.cstruct import cstruct
 from dissect.eventlog.exceptions import Error
@@ -68,24 +68,28 @@ c_evt = cstruct().load(evt_def)
 
 EVENTLOGRECORD_SIZE = len(c_evt.EVENTLOGRECORD)
 
-
-class Record(NamedTuple):
-    RecordNumber: str
-    TimeGenerated: datetime
-    TimeWritten: datetime
-    EventID: int
-    EventCode: int
-    EventFacility: int
-    EventCustomerFlag: int
-    EventSeverity: int
-    EventType: str
-    EventCategory: str
-    SourceName: str
-    Computername: str | None
-    UserSid: str | None
-    Strings: list[str]
-    Data: bytes
-    record: Any
+# Should be refactored to a NamedTuple, but this requires fix all typing in the project
+Record = namedtuple( # noqa: PYI024
+    "Record",
+    [
+        "RecordNumber",
+        "TimeGenerated",
+        "TimeWritten",
+        "EventID",
+        "EventCode",
+        "EventFacility",
+        "EventCustomerFlag",
+        "EventSeverity",
+        "EventType",
+        "EventCategory",
+        "SourceName",
+        "Computername",
+        "UserSid",
+        "Strings",
+        "Data",
+        "record",
+    ],
+)
 
 
 BLOCK_SIZE = 4096
