@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
+
 from dissect.eventlog.exceptions import UnknownSignatureException
 from dissect.eventlog.wevt import MAPS_WEVT_TYPE, TTBL_WEVT_TYPE, WEVT_TYPE
 from dissect.eventlog.wevt_object import WevtObject

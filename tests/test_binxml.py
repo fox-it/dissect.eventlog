@@ -4,6 +4,7 @@ from io import BytesIO
 from unittest.mock import Mock, patch
 
 import pytest
+
 from dissect.eventlog.bxml import Bxml, BxmlToken
 from dissect.eventlog.exceptions import BxmlException
 
