@@ -126,7 +126,7 @@ strict = true
 "tests/_docs/**" = ["INP001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dissect.etl"]
+known-first-party = ["dissect.eventlog"]
 known-third-party = ["dissect"]
 required-imports = ["from __future__ import annotations"]
 
