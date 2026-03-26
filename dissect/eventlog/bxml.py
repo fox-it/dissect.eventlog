@@ -10,9 +10,10 @@ from io import BytesIO
 from typing import Any, BinaryIO
 
 from dissect.cstruct import cstruct
+from dissect.util.ts import wintimestamp
+
 from dissect.eventlog.exceptions import BxmlException
 from dissect.eventlog.utils import KeyValueCollection
-from dissect.util.ts import wintimestamp
 
 
 class BxmlToken(IntEnum):

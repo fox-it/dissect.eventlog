@@ -7,6 +7,7 @@ import logging
 import os
 
 from dissect.cstruct import cstruct
+
 from dissect.eventlog.bxml import Bxml, BxmlSub, EvtxNameReader, parse_bxml
 from dissect.eventlog.exceptions import MalformedElfChnkException
 

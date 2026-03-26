@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-import dissect.eventlog.wevt_object as wevt_objects
 from dissect.cstruct import cstruct
+
+import dissect.eventlog.wevt_object as wevt_objects
 from dissect.eventlog.exceptions import UnknownSignatureException
 
 if TYPE_CHECKING:

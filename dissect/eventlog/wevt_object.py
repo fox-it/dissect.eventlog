@@ -4,6 +4,7 @@ from io import BytesIO
 from uuid import UUID
 
 from dissect.cstruct import cstruct
+
 from dissect.eventlog.bxml import Bxml, BxmlType, Template, WevtNameReader, parse_bxml
 
 wevt_object_def = """

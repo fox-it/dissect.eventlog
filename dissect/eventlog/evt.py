@@ -8,6 +8,7 @@ from collections import namedtuple
 from datetime import datetime, timezone
 
 from dissect.cstruct import cstruct
+
 from dissect.eventlog.exceptions import Error
 
 evt_def = """
