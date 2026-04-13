@@ -5,7 +5,7 @@ from uuid import UUID
 
 from dissect.cstruct import cstruct
 
-import dissect.eventlog.wevt_object as wevt_objects
+import dissect.eventlog.wevt.wevt_object as wevt_objects
 from dissect.eventlog.exceptions import UnknownSignatureException
 
 if TYPE_CHECKING:

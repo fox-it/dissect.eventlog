@@ -5,10 +5,9 @@ from unittest.mock import Mock, patch
 import pytest
 
 from dissect.eventlog.exceptions import UnknownSignatureException
-from dissect.eventlog.wevt import MAPS_WEVT_TYPE, TTBL_WEVT_TYPE, WEVT_TYPE
-from dissect.eventlog.wevt_object import WevtObject
-
-from ._utils import (
+from dissect.eventlog.wevt.wevt import MAPS_WEVT_TYPE, TTBL_WEVT_TYPE, WEVT_TYPE
+from dissect.eventlog.wevt.wevt_object import WevtObject
+from tests._utils import (
     CHAN_DATA,
     CHAN_HEADER,
     TEMP_HEADER,
@@ -47,7 +46,7 @@ def test_wevt_ttbl():
     assert wevtype.header.nr_of_items == 0xA
 
 
-@patch("dissect.eventlog.wevt_object.TEMP")
+@patch("dissect.eventlog.wevt.wevt_object.TEMP")
 def test_wevt_temp_binxml(mocked_temp):
     ttbl_header = create_header("WEVT_TYPE", signature=b"TTBL", size=0x13F8, nr_of_items=1).dumps()
     wevtype = TTBL_WEVT_TYPE(0xE78, ttbl_header + TEMP_HEADER)
@@ -63,7 +62,7 @@ def maps_obj(offset, data_offset):
     return maps_header + vmap_header + data_item
 
 
-@patch("dissect.eventlog.wevt_object.VMAP")
+@patch("dissect.eventlog.wevt.wevt_object.VMAP")
 def test_maps_basic(mocked_map):
     offset = 0x48
     maps = maps_obj(offset, 0)

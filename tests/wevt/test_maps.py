@@ -3,8 +3,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from dissect.eventlog.wevt import MAPS_WEVT_TYPE
-
-from ._utils import create_data_item, create_header, create_header_type
+from tests._utils import create_data_item, create_header, create_header_type
 
 
 def maps_obj(offset, data_offset):
@@ -15,7 +14,7 @@ def maps_obj(offset, data_offset):
     return maps_header + vmap_header + data_item
 
 
-@patch("dissect.eventlog.wevt_object.VMAP")
+@patch("dissect.eventlog.wevt.wevt_object.VMAP")
 def test_maps_basic(mocked_map):
     offset = 0x48
     maps = maps_obj(offset, 0)

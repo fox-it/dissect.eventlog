@@ -18,7 +18,7 @@ def test_initialization():
     CRIM(CRIM_HEADER)
 
 
-@patch("dissect.eventlog.wevt.WEVT")
+@patch("dissect.eventlog.wevt.wevt.WEVT")
 def test_crim_offset(patched_wevt):
     crim = CRIM(CRIM_HEADER)
     assert next(crim.wevt_headers()) == patched_wevt.return_value

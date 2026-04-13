@@ -68,7 +68,7 @@ def test_wevt_test_offset(value, expected_result, mocked_fh):
     assert next_offset == expected_result
 
 
-@patch("dissect.eventlog.wevt.WEVT_TYPE")
+@patch("dissect.eventlog.wevt.wevt.WEVT_TYPE")
 def test_wevt_test_iterator(_, mocked_fh):
     with patch.object(WEVT, WEVT._next_type_offset.__name__):
         wevt = create_wevt(mocked_fh)

@@ -8,7 +8,7 @@ from dissect.eventlog.exceptions import (
     MalformedElfChnkException,
     UnknownSignatureException,
 )
-from dissect.eventlog.wevt import CRIM
+from dissect.eventlog.wevt.wevt import CRIM
 
 __all__ = [
     "CRIM",
