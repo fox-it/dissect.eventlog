@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from dissect.cstruct import cstruct
-
-from dissect.eventlog.wevt.wevt import header_def
-from dissect.eventlog.wevt.wevt_object import wevt_object_def
-
-definitions = cstruct().load(header_def + wevt_object_def)
+from dissect.eventlog.wevt.c_wevt import c_wevt
 
 
 def create_header(type, **kwargs):
     """Create any header type in definitions."""
-    return getattr(definitions, type)(**kwargs)
+    return getattr(c_wevt, type)(**kwargs)
 
 
 def create_header_type(type, **kwargs):

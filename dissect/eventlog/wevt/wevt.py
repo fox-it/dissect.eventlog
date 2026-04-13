@@ -3,49 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from dissect.cstruct import cstruct
-
 import dissect.eventlog.wevt.wevt_object as wevt_objects
 from dissect.eventlog.exceptions import UnknownSignatureException
+from dissect.eventlog.wevt.c_wevt import c_wevt
 
 if TYPE_CHECKING:
     from io import BufferedReader
-
-header_def = """
-struct Event_Descriptor {
-    char      ProviderId[16];
-    uint32    offset;
-};
-
-struct CRIM_HEADER {
-    char             signature[4];
-    uint32           size;
-    uint32           unknown;
-    uint32           providers;
-    Event_Descriptor event_providers[providers];
-};
-
-struct WEVT_TYPES {
-    uint32    type;
-    uint32    offset;
-}
-
-struct WEVT {
-    char        signature[4];
-    uint32      size;
-    uint32      message_table_id;
-    uint32      nr_of_types;
-    WEVT_TYPES  types[nr_of_types];
-};
-
-struct WEVT_TYPE {
-    char    signature[4];
-    uint32  size;
-    uint32  nr_of_items;
-};
-"""
-
-c_wevt_headers = cstruct().load(header_def)
 
 
 def validate_signature(signature, expected_signature):
@@ -60,7 +23,7 @@ class CRIM:
 
     def __init__(self, fh: BufferedReader):
         self.fh = fh
-        self.header = c_wevt_headers.CRIM_HEADER(fh)
+        self.header = c_wevt.CRIM_HEADER(fh)
         validate_signature(self.header.signature, b"CRIM")
 
     @property
@@ -84,7 +47,7 @@ class WEVT:
         self.offset = provider.offset
 
         fh.seek(self.offset)
-        self.header = c_wevt_headers.WEVT(fh)
+        self.header = c_wevt.WEVT(fh)
         fh.seek(self.offset)
         validate_signature(self.header.signature, b"WEVT")
 
@@ -109,7 +72,7 @@ class WEVT:
     def __iter__(self):
         for type in self.payload_types:
             next_offset = self._next_type_offset(type.offset)
-            signature = c_wevt_headers.char[4](self.data[next_offset:])
+            signature = c_wevt.char[4](self.data[next_offset:])
             yield self._choose_wevt_type(signature)(type.offset, self.data[next_offset:])
 
     def _next_type_offset(self, type_offset):
@@ -138,7 +101,7 @@ class WEVT_TYPE:
     def __init__(self, offset, data: memoryview):
         self.offset = offset
         self.data = data
-        self.header = c_wevt_headers.WEVT_TYPE(self.data)
+        self.header = c_wevt.WEVT_TYPE(self.data)
         self.signature = self.header.signature.decode("ascii")
         if self.signature not in self.valid_signatures:
             raise UnknownSignatureException(f"Invalid WEVT_TYPE signature {self.signature}")
@@ -177,9 +140,9 @@ class MAPS_WEVT_TYPE(WEVT_TYPE):
         offset = len(self.header) + self.offset
 
         for index in range(self.nr_of_items):
-            map_offset = c_wevt_headers.uint32(self.payload[index * 4 :])
+            map_offset = c_wevt.uint32(self.payload[index * 4 :])
             data = self.payload[(map_offset - offset) :]
-            signature = c_wevt_headers.char[4](data)
+            signature = c_wevt.char[4](data)
             map = self._get_map(signature)(map_offset, data)
             yield map
 

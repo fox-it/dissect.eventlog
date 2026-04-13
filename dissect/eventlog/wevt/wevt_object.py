@@ -3,106 +3,8 @@ from __future__ import annotations
 from io import BytesIO
 from uuid import UUID
 
-from dissect.cstruct import cstruct
-
 from dissect.eventlog.bxml import Bxml, BxmlType, Template, WevtNameReader, parse_bxml
-
-wevt_object_def = """
-struct DATA_ITEM {
-    uint32  size;
-    wchar   name[(size/2)-2];
-};
-
-struct CHAN {
-    uint32  id;
-    uint32  data_offset;
-    uint32  nr;
-    uint32  message_table_id;
-};
-
-struct TEMP {
-    char    signature[4];
-    uint32  size;
-    uint32  nr_of_items;
-    uint32  nr_of_names;
-    uint32  data_offset;
-    uint32  binxml_fragments;
-    char    identifier[16];
-};
-
-struct TEMP_DESCRIPTOR {
-    uint32  unknown0;
-    uint8   input_type;
-    uint8   output_type;
-    uint16  unknown1;
-    uint32  unknown2;
-    uint32  unknown3;
-    uint32  data_offset;
-}
-
-struct PRVA {
-    uint32  unknown;
-    uint32  data_offset;
-};
-
-struct TASK {
-    uint32  id;
-    uint32  message_table_id;
-    char    mui_id[16];
-    uint32  data_offset;
-};
-
-struct KEYW {
-    uint64  bitmask;
-    uint32  message_table_id;
-    uint32  data_offset;
-};
-
-struct LEVL {
-    uint32  id;
-    uint32  message_table_id;
-    uint32  data_offset;
-};
-
-struct EVNT {
-    uint16  id;
-    uchar   version;
-    uchar   channel;
-    uchar   level;
-    uchar   opcode;
-    uint16  task;
-    uint64  keyword;
-    uint32  message_table_id;
-    uint32  template_offset;
-    uint32  opcode_offset;
-    uint32  level_offset;
-    uint32  task_offset;
-    uint32  data_counter;
-    uint32  data_offset;
-    uint32  flags;
-};
-
-struct OPCO {
-    uint16  task_id;
-    uint16  value;
-    uint32  message_table_id;
-    uint32  data_offset;
-};
-
-struct VMAP {
-    char   signature[4];
-    uint32 size;
-    uint32 data_offset;
-};
-
-struct BMAP {
-    char   signature[4];
-    uint32 size;
-    uint32 data_offset;
-};
-"""
-
-c_wevt_objects = cstruct().load(wevt_object_def)
+from dissect.eventlog.wevt.c_wevt import c_wevt
 
 
 class WevtObject:
@@ -110,7 +12,7 @@ class WevtObject:
 
     def __init__(self, offset, data):
         self.offset = offset
-        self.header = getattr(c_wevt_objects, self.__class__.__name__)(data)
+        self.header = getattr(c_wevt, self.__class__.__name__)(data)
         self.data = data[len(self.header) :]
         self.data_start = self.offset + len(self.header)
         self.data_offset = self.header.data_offset - self.data_start
@@ -119,7 +21,7 @@ class WevtObject:
         """data_offset is a relative offset that usually points to the data_item.
         This point is used to read the name for this specific.
         """
-        return c_wevt_objects.DATA_ITEM(self.data[data_offset:]).name.rstrip("\x00")
+        return c_wevt.DATA_ITEM(self.data[data_offset:]).name.rstrip("\x00")
 
     def __getattribute__(self, name: str):
         try:
