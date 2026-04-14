@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO
 from uuid import UUID
 
 import dissect.eventlog.wevt.wevt_object as wevt_objects
@@ -8,12 +8,7 @@ from dissect.eventlog.exceptions import UnknownSignatureException
 from dissect.eventlog.wevt.c_wevt import c_wevt
 
 if TYPE_CHECKING:
-    from io import BufferedReader
-
-
-def validate_signature(signature, expected_signature):
-    if signature != expected_signature:
-        raise UnknownSignatureException(f"Invalid {expected_signature!s}")
+    from collections.abc import Iterator
 
 
 class CRIM:
@@ -21,17 +16,21 @@ class CRIM:
     Holds the number of providers inside the template.
     """
 
-    def __init__(self, fh: BufferedReader):
+    fh: BinaryIO
+    header: c_wevt.CRIM_HEADER
+
+    def __init__(self, fh: BinaryIO):
         self.fh = fh
         self.header = c_wevt.CRIM_HEADER(fh)
-        validate_signature(self.header.signature, b"CRIM")
+        if self.header.signature != b"CRIM":
+            raise UnknownSignatureException(f"Invalid signature, expected b'CRIM' got {self.header.signature}")
 
     @property
-    def file_size(self):
+    def file_size(self) -> int:
         """Return size of the whole file."""
         return self.header.size
 
-    def wevt_headers(self):
+    def wevt_headers(self) -> Iterator[WEVT]:
         """Get the WEVT object for a specific provider."""
         for event_provider in self.header.event_providers:
             yield WEVT(event_provider, self.fh)
@@ -42,52 +41,53 @@ class WEVT:
     Additionally, it goes through all items inside the file.
     """
 
-    def __init__(self, provider, fh):
+    def __init__(self, provider: c_wevt.Event_Descriptor, fh: BinaryIO):
         self.event_provider = provider
-        self.offset = provider.offset
+        self.offset: int = provider.offset
 
         fh.seek(self.offset)
         self.header = c_wevt.WEVT(fh)
         fh.seek(self.offset)
-        validate_signature(self.header.signature, b"WEVT")
+        if self.header.signature != b"WEVT":
+            raise UnknownSignatureException(f"Invalid signature, expected b'WEVT' got {self.header.signature}")
 
         self.payload_size = self.header.size
         self.data = memoryview(fh.read(self.payload_size))
 
+    def __repr__(self) -> str:
+        return f"<WEVT provider_id={self.provider_id} payload_size={self.payload_size} header={self.header}>"
+
     @property
-    def len_types(self):
+    def len_types(self) -> int:
         return self.header.nr_of_types
 
     @property
-    def payload_types(self):
+    def payload_types(self) -> list[c_wevt.WEVT_TYPES]:
         return self.header.types
 
-    def _choose_wevt_type(self, signature):
+    def _choose_wevt_type(self, signature: bytes) -> type[WEVT_TYPE]:
         if signature == b"MAPS":
             return MAPS_WEVT_TYPE
         if signature == b"TTBL":
             return TTBL_WEVT_TYPE
         return WEVT_TYPE
 
-    def __iter__(self):
-        for type in self.payload_types:
-            next_offset = self._next_type_offset(type.offset)
+    def __iter__(self) -> Iterator[WEVT_TYPE]:
+        for _type in self.payload_types:
+            next_offset = self._next_type_offset(_type.offset)
             signature = c_wevt.char[4](self.data[next_offset:])
-            yield self._choose_wevt_type(signature)(type.offset, self.data[next_offset:])
+            yield self._choose_wevt_type(signature)(_type.offset, self.data[next_offset:])
 
-    def _next_type_offset(self, type_offset):
-        return type_offset - self.offset
+    def _next_type_offset(self, offset: int) -> int:
+        return offset - self.offset
 
     @property
-    def provider_id(self):
+    def provider_id(self) -> UUID:
         return UUID(bytes_le=self.event_provider.ProviderId)
 
     @property
-    def size(self):
+    def size(self) -> int:
         return self.header.size
-
-    def __repr__(self):
-        return f"<WEVT provider_id={self.provider_id} payload_size={self.payload_size} header={self.header}>"
 
 
 class WEVT_TYPE:
@@ -96,9 +96,22 @@ class WEVT_TYPE:
     and passes the size of the data.
     """
 
-    valid_signatures = ["CHAN", "TEMP", "PRVA", "TASK", "KEYW", "LEVL", "OPCO", "VMAP", "BMAP", "MAPS", "TTBL", "EVNT"]
+    valid_signatures: tuple[str, ...] = (
+        "CHAN",
+        "TEMP",
+        "PRVA",
+        "TASK",
+        "KEYW",
+        "LEVL",
+        "OPCO",
+        "VMAP",
+        "BMAP",
+        "MAPS",
+        "TTBL",
+        "EVNT",
+    )
 
-    def __init__(self, offset, data: memoryview):
+    def __init__(self, offset: int, data: memoryview):
         self.offset = offset
         self.data = data
         self.header = c_wevt.WEVT_TYPE(self.data)
@@ -107,26 +120,20 @@ class WEVT_TYPE:
             raise UnknownSignatureException(f"Invalid WEVT_TYPE signature {self.signature}")
         self.payload = data[len(self.header) : self.header.size]
 
-    def __iter__(self):
-        offset = self._additional_offset()
+    def __iter__(self) -> Iterator[WEVT_TYPE]:
+        offset = 4 if self.signature == "EVNT" else 0
         start_offset = len(self.header) + self.offset
         for _ in range(self.nr_of_items):
             item = getattr(wevt_objects, self.signature)(start_offset + offset, self.payload[offset:])
             yield item
             offset += len(item.header)
 
-    def _additional_offset(self):
-        """An additional offset for specific wevtobjects."""
-        if self.signature == "EVNT":
-            return 4
-        return 0
-
     @property
-    def nr_of_items(self):
+    def nr_of_items(self) -> int:
         return self.header.nr_of_items
 
     @property
-    def size(self):
+    def size(self) -> int:
         return self.header.size
 
 
@@ -146,7 +153,7 @@ class MAPS_WEVT_TYPE(WEVT_TYPE):
             map = self._get_map(signature)(map_offset, data)
             yield map
 
-    def _get_map(self, signature):
+    def _get_map(self, signature: bytes) -> type[wevt_objects.WevtName] | None:
         if signature == b"VMAP":
             return wevt_objects.VMAP
         if signature == b"BMAP":
@@ -157,7 +164,7 @@ class MAPS_WEVT_TYPE(WEVT_TYPE):
 class TTBL_WEVT_TYPE(WEVT_TYPE):
     """A specific WEVT Type that loads multiple TEMP."""
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[wevt_objects.TEMP]:
         offset = 0
         start_offset = len(self.header) + self.offset
         for _ in range(self.nr_of_items):

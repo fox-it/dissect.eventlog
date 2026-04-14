@@ -76,9 +76,9 @@ select = [
   "I",
   "UP",
   "YTT",
-#  "ANN",
+  "ANN",
   "B",
-#  "C4",
+  "C4",
   "DTZ",
   "T10",
   "FA",
@@ -87,7 +87,7 @@ select = [
   "INP",
   "PIE",
   "PYI",
-#  "PT",
+  "PT",
   "Q",
   "RSE",
   "RET",
@@ -101,7 +101,7 @@ select = [
   "FLY",
   "PERF",
   "FURB",
-#  "RUF",
+  "RUF",
   "D"
 ]
 ignore = [
@@ -124,6 +124,7 @@ strict = true
 
 [tool.ruff.lint.per-file-ignores]
 "tests/_docs/**" = ["INP001"]
+"**/*.pyi" = ["PYI042", "PYI047"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["dissect.eventlog"]
