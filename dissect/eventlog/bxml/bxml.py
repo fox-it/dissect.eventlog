@@ -7,13 +7,16 @@ import uuid
 from datetime import datetime
 from enum import IntEnum
 from io import BytesIO
-from typing import Any, BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO
 
-from dissect.cstruct import cstruct
 from dissect.util.ts import wintimestamp
 
+from dissect.eventlog.bxml.c_bxml import c_bxml
 from dissect.eventlog.exceptions import BxmlException
 from dissect.eventlog.utils import KeyValueCollection
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class BxmlToken(IntEnum):
@@ -74,85 +77,9 @@ class BxmlType(IntEnum):
         return f"win:{self.name.lstrip('_')}"
 
 
-bxml_def = """
-struct BXML_FRAGMENT_HEADER {
-    uint8 major_version;
-    uint8 minor_version;
-    uint8 flags;
-};
-
-struct BXML_ELEMENT_START_TPL {
-    uint16 dependency_id;
-    uint32 data_size;
-};
-
-struct BXML_ELEMENT_START {
-    uint32 data_size;
-};
-
-struct BXML_NAME {
-    uint32 unknown;
-    uint16 hash;
-    uint16 size;
-    wchar value[size];
-};
-
-struct BXML_ATTR {
-    uint8 token;
-};
-
-struct BXML_VALUE_TEXT {
-    uint16 size;
-    wchar value[size];
-};
-
-struct BXML_TEMPLATE_REFERENCE {
-    uint8 a;
-    uint32 template_id;
-    uint32 offset;
-};
-
-struct BXML_TEMPLATE_DEFINITION {
-    uint32 next_template;
-    char identifier[16];
-    uint32 data_size;
-};
-
-struct BXML_OPTIONAL_SUBSTITUTION {
-    uint16 sub_id;
-    uint8 value_type;
-};
-
-struct BXML_TEMPLATE_VALUE_DESC {
-    uint16 size;
-    uint8 type_id;
-    uint8 a;
-};
-
-typedef struct SID {
-    uint8 revision;
-    uint8 subAuthorityCount;
-    char authority[6];
-    uint32 subAuthorities[subAuthorityCount];
-};
-
-struct SYSTEMTIME {
-    WORD wYear;
-    WORD wMonth;
-    WORD wDayOfWeek;
-    WORD wDay;
-    WORD wHour;
-    WORD wMinute;
-    WORD wSecond;
-    WORD wMilliseconds;
-};
-"""
-bxml_struct = cstruct().load(bxml_def)
-
-
-def read_systemtime(stream):
+def read_systemtime(stream: BinaryIO):
     """Read systemtime from stream."""
-    st = bxml_struct.SYSTEMTIME(stream)
+    st = c_bxml.SYSTEMTIME(stream)
     return datetime(  # noqa: DTZ001
         year=st.wYear,
         month=st.wMonth,
@@ -173,40 +100,38 @@ def read_guid(stream) -> str:
 
 def read_sid(stream) -> str:
     """Read SID from stream."""
-    sid = bxml_struct.SID(stream)
+    sid = c_bxml.SID(stream)
     revision_str = str(sid.revision)
     last_authority = str(bytearray(sid.authority)[-1])
     sub_authorities = [str(authority) for authority in sid.subAuthorities]
     return "-".join(["S", revision_str, last_authority] + sub_authorities)
 
 
-TYPE_READERS = {
+TYPE_READERS: dict[BxmlType, Callable[[BinaryIO], Any]] = {
     BxmlType.NULL: lambda s: None,
-    BxmlType.STRING: bxml_struct.wchar[None].read,
-    BxmlType.ANSITRING: bxml_struct.char[None].read,
-    BxmlType.INT8: bxml_struct.int8.read,
-    BxmlType.UINT8: bxml_struct.uint8.read,
-    BxmlType.INT16: bxml_struct.int16.read,
-    BxmlType.UINT16: bxml_struct.uint16.read,
-    BxmlType.INT32: bxml_struct.int32.read,
-    BxmlType.UINT32: bxml_struct.uint32.read,
-    BxmlType.INT64: bxml_struct.int64.read,
-    BxmlType.UINT64: bxml_struct.uint64.read,
-    BxmlType.FLOAT: bxml_struct.float.read,
-    BxmlType.DOUBLE: bxml_struct.double.read,
-    BxmlType.BOOL: lambda stream: bxml_struct.uint8.read(stream),
+    BxmlType.STRING: c_bxml.wchar[None].read,
+    BxmlType.ANSITRING: c_bxml.char[None].read,
+    BxmlType.INT8: c_bxml.int8.read,
+    BxmlType.UINT8: c_bxml.uint8.read,
+    BxmlType.INT16: c_bxml.int16.read,
+    BxmlType.UINT16: c_bxml.uint16.read,
+    BxmlType.INT32: c_bxml.int32.read,
+    BxmlType.UINT32: c_bxml.uint32.read,
+    BxmlType.INT64: c_bxml.int64.read,
+    BxmlType.UINT64: c_bxml.uint64.read,
+    BxmlType.FLOAT: c_bxml.float.read,
+    BxmlType.DOUBLE: c_bxml.double.read,
+    BxmlType.BOOL: lambda stream: c_bxml.uint8.read(stream),
     BxmlType.BINARY: lambda stream: binascii.hexlify(stream.read()),
     BxmlType.GUID: read_guid,
     BxmlType.SIZET: (
-        lambda stream: (
-            f"0x{bxml_struct.uint32(stream):x}" if len(stream.getvalue()) == 4 else f"0x{bxml_struct.uint64(stream):x}"
-        )
+        lambda stream: f"0x{c_bxml.uint32(stream):x}" if len(stream.getvalue()) == 4 else f"0x{c_bxml.uint64(stream):x}"
     ),
-    BxmlType.FILETIME: lambda stream: wintimestamp(bxml_struct.uint64(stream)),
+    BxmlType.FILETIME: lambda stream: wintimestamp(c_bxml.uint64(stream)),
     BxmlType.SYSTEMTIME: lambda stream: read_systemtime(stream),
     BxmlType.SID: read_sid,
-    BxmlType.HEXINT32: lambda stream: f"0x{bxml_struct.uint32(stream):x}",
-    BxmlType.HEXINT64: lambda stream: f"0x{bxml_struct.uint64(stream):x}",
+    BxmlType.HEXINT32: lambda stream: f"0x{c_bxml.uint32(stream):x}",
+    BxmlType.HEXINT64: lambda stream: f"0x{c_bxml.uint64(stream):x}",
 }
 
 
@@ -216,7 +141,7 @@ class BxmlTag:
         self.attributes = {}
         self.children = []
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.attributes:
             temp_items = " ".join(f'{k}="{v}"' for k, v in self.attributes.items())
             result = f"<{self.name} {temp_items}>"
@@ -365,7 +290,7 @@ class Bxml:
 
     def read_token(self, template: Template = None):
         """Read the next BXML token from stream."""
-        token = Token(bxml_struct.uint8(self.bxml_stream))
+        token = Token(c_bxml.uint8(self.bxml_stream))
 
         if token == BxmlToken.BXML_END:
             return BxmlToken.BXML_END
@@ -395,9 +320,9 @@ class Bxml:
 
     def parse_start_element(self, more_data: bool, template: Template) -> BxmlTag:
         if template:
-            bxml_struct.BXML_ELEMENT_START_TPL(self.bxml_stream)
+            c_bxml.BXML_ELEMENT_START_TPL(self.bxml_stream)
         else:
-            bxml_struct.BXML_ELEMENT_START(self.bxml_stream)
+            c_bxml.BXML_ELEMENT_START(self.bxml_stream)
 
         tag = self._read_tag_and_attributes(more_data, template)
 
@@ -420,14 +345,14 @@ class Bxml:
         return tag
 
     def _read_attributes(self, template: Template) -> tuple[str, Any]:
-        attr_size = bxml_struct.uint32(self.bxml_stream)
+        attr_size = c_bxml.uint32(self.bxml_stream)
         attr_end = self.bxml_stream.tell() + attr_size
         while self.bxml_stream.tell() < attr_end:
             yield self.read_token(template)
 
     def _read_template_reference_and_data(self) -> Template:
         """Read template reference and create a template."""
-        reference = bxml_struct.BXML_TEMPLATE_REFERENCE(self.bxml_stream)
+        reference = c_bxml.BXML_TEMPLATE_REFERENCE(self.bxml_stream)
 
         if reference.offset == self.current_offset:
             template = self._create_and_fill_template()
@@ -439,8 +364,8 @@ class Bxml:
         return template
 
     def _create_and_fill_template(self) -> Template:
-        bxml_struct.BXML_TEMPLATE_DEFINITION(self.bxml_stream)
-        bxml_struct.BXML_FRAGMENT_HEADER(self.bxml_stream)
+        c_bxml.BXML_TEMPLATE_DEFINITION(self.bxml_stream)
+        c_bxml.BXML_FRAGMENT_HEADER(self.bxml_stream)
 
         template = Template()
 
@@ -469,13 +394,13 @@ class Bxml:
             yield tag
 
     def _read_string_value(self, flag_more: bool, template: Template) -> str:
-        value = bxml_struct.BXML_VALUE_TEXT(self.bxml_stream).value
+        value = c_bxml.BXML_VALUE_TEXT(self.bxml_stream).value
         if flag_more:
             value += self.read_token(template)
         return value
 
     def read_value(self, flag_more: bool, template: Template) -> str:
-        value_type = bxml_struct.uint8(self.bxml_stream)
+        value_type = c_bxml.uint8(self.bxml_stream)
         if value_type == BxmlType.STRING:
             return self._read_string_value(flag_more, template)
 
@@ -494,17 +419,17 @@ class Bxml:
         return reference
 
     def substitute_token_and_add_to_template(self, template: Template) -> BxmlSub:
-        substitution = bxml_struct.BXML_OPTIONAL_SUBSTITUTION(self.bxml_stream)
+        substitution = c_bxml.BXML_OPTIONAL_SUBSTITUTION(self.bxml_stream)
         bxml_sub = BxmlSub(substitution.sub_id)
         template.add_sub(substitution.sub_id, bxml_sub)
         return bxml_sub
 
     def read_fragment_header(self) -> BxmlToken:
-        bxml_struct.BXML_FRAGMENT_HEADER(self.bxml_stream)
+        c_bxml.BXML_FRAGMENT_HEADER(self.bxml_stream)
         return BxmlToken.BXML_FRAGMENT_HEADER
 
     def read_char_reference(self) -> str:
-        return f"&x{bxml_struct.uint16(self.bxml_stream):x};"
+        return f"&x{c_bxml.uint16(self.bxml_stream):x};"
 
     def read_template_instance(self) -> Template:
         _template = self._read_template_reference_and_data()
@@ -549,7 +474,7 @@ class EvtxNameReader(BxmlNameReader):
 
         If the offset is outside the BXML data range elf_chunk data is used.
         """
-        offset = bxml_struct.uint32(self.bxml_datastream)
+        offset = c_bxml.uint32(self.bxml_datastream)
         if offset == self.bxml.current_offset:
             element_name = self._read_name_from_bxml_stream()
         else:
@@ -561,13 +486,13 @@ class EvtxNameReader(BxmlNameReader):
         """Read the name from the ELF chunk, but keeps the needle position."""
         pos = self.elf_chunk_stream.tell()
         self.elf_chunk_stream.seek(offset)
-        element_name = bxml_struct.BXML_NAME(self.elf_chunk_stream)
+        element_name = c_bxml.BXML_NAME(self.elf_chunk_stream)
         self.elf_chunk_stream.seek(pos)
         return element_name
 
     def _read_name_from_bxml_stream(self):
         """Read the name from the bxml_datastream."""
-        element_name = bxml_struct.BXML_NAME(self.bxml_datastream)
+        element_name = c_bxml.BXML_NAME(self.bxml_datastream)
         self._read_and_validate_padding()
         return element_name
 
@@ -584,13 +509,13 @@ class WevtNameReader(BxmlNameReader):
 
     def _read_bxml_data_name(self):
         self._read_hash_value()
-        element_name = bxml_struct.BXML_VALUE_TEXT(self.bxml_datastream)
+        element_name = c_bxml.BXML_VALUE_TEXT(self.bxml_datastream)
         self._read_and_validate_padding()
         return element_name
 
     def _read_hash_value(self):
         """Reads the hash value for the object."""
-        return bxml_struct.uint16(self.bxml_datastream)
+        return c_bxml.uint16(self.bxml_datastream)
 
 
 class Token:
@@ -649,14 +574,14 @@ class BxmlTemplateDescriptor:
     @classmethod
     def read_descriptors_from_stream(cls, stream: BytesIO):
         """Read a range of BXML descriptors from stream."""
-        entry_count = bxml_struct.uint32(stream)
+        entry_count = c_bxml.uint32(stream)
         for _ in range(entry_count):
             yield cls.from_stream(stream)
 
     @classmethod
     def from_stream(cls, stream: BytesIO):
         """Read a singular BXML descriptors from stream."""
-        struct = bxml_struct.BXML_TEMPLATE_VALUE_DESC(stream)
+        struct = c_bxml.BXML_TEMPLATE_VALUE_DESC(stream)
         return cls(struct)
 
 
