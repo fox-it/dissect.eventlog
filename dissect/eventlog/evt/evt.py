@@ -6,68 +6,15 @@ import io
 import struct
 from collections import namedtuple
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, BinaryIO
 
-from dissect.cstruct import cstruct
-
+from dissect.eventlog.evt.c_evt import c_evt
 from dissect.eventlog.exceptions import Error
 
-evt_def = """
-#define ELF_LOGFILE_HEADER_DIRTY    0x0001
-#define ELF_LOGFILE_HEADER_WRAP     0x0002
-#define ELF_LOGFILE_LOGFULL_WRITTEN 0x0004
-#define ELF_LOGFILE_ARCHIVE_SET     0x0008
-
-typedef struct _EVENTLOGHEADER {
-    ULONG   HeaderSize;
-    char    Signature[4];
-    ULONG   MajorVersion;
-    ULONG   MinorVersion;
-    ULONG   StartOffset;
-    ULONG   EndOffset;
-    ULONG   CurrentRecordNumber;
-    ULONG   OldestRecordNumber;
-    ULONG   MaxSize;
-    ULONG   Flags;
-    ULONG   Retention;
-    ULONG   EndHeaderSize;
-} EVENTLOGHEADER;
-
-typedef struct _EVENTLOGRECORD {
-    DWORD   Length;
-    DWORD   Reserved;
-    DWORD   RecordNumber;
-    DWORD   TimeGenerated;
-    DWORD   TimeWritten;
-    DWORD   EventID;
-    WORD    EventType;
-    WORD    NumStrings;
-    WORD    EventCategory;
-    WORD    ReservedFlags;
-    DWORD   ClosingRecordNumber;
-    DWORD   StringOffset;
-    DWORD   UserSidLength;
-    DWORD   UserSidOffset;
-    DWORD   DataLength;
-    DWORD   DataOffset;
-} EVENTLOGRECORD;
-
-typedef struct _EVENTLOGEOF {
-    ULONG   RecordSizeBeginning;
-    ULONG   One;
-    ULONG   Two;
-    ULONG   Three;
-    ULONG   Four;
-    ULONG   BeginRecord;
-    ULONG   EndRecord;
-    ULONG   CurrentRecordNumber;
-    ULONG   OldestRecordNumber;
-    ULONG   RecordSizeEnd;
-} EVENTLOGEOF;
-"""
-
-c_evt = cstruct().load(evt_def)
-
 EVENTLOGRECORD_SIZE = len(c_evt.EVENTLOGRECORD)
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 # Should be refactored to a NamedTuple, but this requires fix all typing in the project
 Record = namedtuple(  # noqa: PYI024
@@ -99,7 +46,7 @@ DIRTY_NEEDLE = b"\x28\x00\x00\x00" + (b"\x11" * 4) + (b"\x22" * 4) + (b"\x33" * 
 class Evt:
     """Windows Event files for WinOS up until Windows XP."""
 
-    def __init__(self, fh):
+    def __init__(self, fh: BinaryIO):
         self.fh = fh
 
         if not hasattr(fh, "size"):
@@ -135,16 +82,16 @@ class Evt:
             else:
                 raise ValueError("Dirty evt file with no floating EOF record")
 
-    def _is_dirty(self):
+    def _is_dirty(self) -> bool:
         return self.header.Flags & c_evt.ELF_LOGFILE_HEADER_DIRTY == c_evt.ELF_LOGFILE_HEADER_DIRTY
 
-    def _update_meta_from_eof_record(self, eof_record):
+    def _update_meta_from_eof_record(self, eof_record: c_evt.EVENTLOGEOF) -> None:
         self.start_offset = eof_record.BeginRecord
         self.end_offset = eof_record.EndRecord
         self.current_record_number = eof_record.CurrentRecordNumber
         self.oldest_record_number = eof_record.OldestRecordNumber
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Record]:
         fh = self.fh
         fh.seek(self.start_offset)
 
@@ -237,7 +184,7 @@ class Evt:
             fh.seek(next_pos)
 
 
-def find_needle(fh, needle):
+def find_needle(fh: BinaryIO, needle: bytes) -> Iterator[int]:
     needle_len = len(needle)
     overlap_len = needle_len - 1
 
@@ -254,7 +201,7 @@ def find_needle(fh, needle):
         fh.seek(offset + BLOCK_SIZE - overlap_len)
 
 
-def parse_record(record, buf):
+def parse_record(record: c_evt.EVENTLOGRECORD, buf: BinaryIO) -> Record:
     pos = buf.tell()
 
     source = c_evt.wchar[None](buf)
@@ -300,7 +247,7 @@ def parse_record(record, buf):
     )
 
 
-def reprsid(s):
+def reprsid(s: bytes) -> str | None:
     if not s:
         return None
 
@@ -313,7 +260,7 @@ def reprsid(s):
     return r
 
 
-def is_eof_record(record):
+def is_eof_record(record: c_evt.EVENTLOGRECORD) -> bool:
     return (
         record.Length == len(c_evt.EVENTLOGEOF)
         and record.Reserved == 0x11111111  # _EVENTLOGEOF.One
@@ -321,12 +268,12 @@ def is_eof_record(record):
     )
 
 
-def is_header_record(record):
+def is_header_record(record: c_evt.EVENTLOGRECORD) -> bool:
     # https://forensicswiki.xyz/page/Windows_Event_Log_(EVT)
     return record.Length == len(c_evt.EVENTLOGHEADER) == 0x30
 
 
-def parse_chunk(chunk):
+def parse_chunk(chunk: bytes) -> Iterator[Record]:
     """Requires a chunk that starts with EVENTLOGRECORD header."""
     buffer = io.BytesIO(chunk)
     record = c_evt.EVENTLOGRECORD(buffer)

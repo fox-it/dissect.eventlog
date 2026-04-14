@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dissect.eventlog.evt import Evt
+from dissect.eventlog.evt.evt import Evt
 from dissect.eventlog.evtx import Evtx
 from dissect.eventlog.exceptions import (
     BxmlException,

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import typing
+from typing import TYPE_CHECKING
 
 import pytest
 
-from dissect.eventlog.evt import Evt
+from dissect.eventlog.evt.evt import Evt
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 # $rawData = [System.Text.Encoding]::Unicode.GetBytes("Test Binary Data")
@@ -22,7 +23,7 @@ if typing.TYPE_CHECKING:
 
 
 @pytest.mark.parametrize("log_filename", ["_data/TestLog.evt", "_data/TestLog-dirty.evt"])
-def test_evt_parsing(get_absolute_path, log_filename):
+def test_evt_parsing(get_absolute_path: Callable[[str], Path], log_filename: str) -> None:
     file_path: Path = get_absolute_path(log_filename)
 
     with file_path.open("rb") as fh:
