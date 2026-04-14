@@ -5,17 +5,24 @@ from __future__ import annotations
 import io
 import logging
 import os
+from typing import TYPE_CHECKING, BinaryIO
 
 from dissect.eventlog.bxml import Bxml, BxmlSub, EvtxNameReader, parse_bxml
 from dissect.eventlog.evtx.c_evtx import c_evtx
 from dissect.eventlog.exceptions import MalformedElfChnkException
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
+    from dissect.eventlog.utils import KeyValueCollection
 
 log = logging.getLogger(__name__)
 log.setLevel(os.getenv("DISSECT_LOG_EVTX", "CRITICAL"))
 
 
 class ElfChnk:
-    def __init__(self, d, path=None):
+    def __init__(self, d: bytes, path: Path | None = None):
         self.path = path
         self.stream = io.BytesIO(d)
         self.header = c_evtx.EVTX_CHUNK(self.stream)
@@ -32,7 +39,7 @@ class ElfChnk:
         self.templates = {}
         self.data_offset = 0
 
-    def read(self, records=True):
+    def read(self, records: bool = True) -> Iterator[KeyValueCollection]:
         try:
             while True:
                 offset = self.stream.tell()
@@ -80,13 +87,13 @@ class ElfChnk:
 class Evtx:
     """Microsoft Event logs."""
 
-    def __init__(self, fh, path=None):
+    def __init__(self, fh: BinaryIO, path: Path | None = None):
         self.path = path
         self.fh = fh
         self.header = c_evtx.EVTX_HEADER(self.fh)
         self.count = 0
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[KeyValueCollection]:
         chunk_offset = self.header.header_block_size
 
         skip = self.header.header_block_size - len(c_evtx.EVTX_HEADER)
