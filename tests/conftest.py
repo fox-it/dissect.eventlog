@@ -15,7 +15,7 @@ def absolute_path(filename: str) -> Path:
 
 @pytest.fixture
 def get_absolute_path() -> Callable[[str], Path]:
-    def _absolute_path(filename):
+    def _absolute_path(filename: str) -> Path:
         return absolute_path(filename)
 
     return _absolute_path

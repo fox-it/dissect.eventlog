@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from dissect.eventlog.wevt.c_wevt import c_wevt
 
+if TYPE_CHECKING:
+    from dissect.cstruct import cstruct
 
-def create_header(type, **kwargs):
+
+def create_header(type: str, **kwargs: dict[str, Any]) -> cstruct:
     """Create any header type in definitions."""
     return getattr(c_wevt, type)(**kwargs)
 
 
-def create_header_type(type, **kwargs):
+def create_header_type(type: str, **kwargs: dict[str, Any]) -> bytes:
     data_offset = kwargs.get("data_offset")
     if not data_offset:
         kwargs.pop("data_offset", None)
@@ -18,7 +23,7 @@ def create_header_type(type, **kwargs):
     return header_type.dumps()
 
 
-def create_data_item(data: str):
+def create_data_item(data: str) -> bytes:
     data_length = len(data) * 2
     padding = 8 - (data_length % 8)
     size = data_length + padding + 4  # It's 8 byte aligned
