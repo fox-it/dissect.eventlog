@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from io import BytesIO
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
 
 from dissect.eventlog.bxml import Bxml, BxmlToken
 from dissect.eventlog.exceptions import BxmlException
+
+if TYPE_CHECKING:
+    from types import FunctionType
 
 
 @pytest.mark.parametrize(
@@ -22,7 +26,7 @@ from dissect.eventlog.exceptions import BxmlException
         (BxmlToken.BXML_TOKEN_OPTIONAL_SUBSTITUTION, Bxml.substitute_token_and_add_to_template),
     ],
 )
-def test_bxml_read_token(token, mocked_method):
+def test_bxml_read_token(token: BxmlToken, mocked_method: FunctionType) -> None:
     bxml_obj = Bxml(bytes([token]), None)
     with patch.object(Bxml, mocked_method.__name__) as obj:
         assert bxml_obj.read_token() == obj.return_value
@@ -38,18 +42,18 @@ def test_bxml_read_token(token, mocked_method):
         (BxmlToken.BXML_FRAGMENT_HEADER, BxmlToken.BXML_FRAGMENT_HEADER),
     ],
 )
-def test_bxml_read_token_end_states(token, expected_end):
+def test_bxml_read_token_end_states(token: BxmlToken, expected_end: BxmlToken) -> None:
     bxml_obj = Bxml(bytes([token, 0x0, 0x0, 0x0]), None)
     assert bxml_obj.read_token() == expected_end
 
 
-def test_bxml_read_unknown_token():
+def test_bxml_read_unknown_token() -> None:
     bxml_obj = Bxml(bytes([0x10]), None)
     with pytest.raises(BxmlException):
         bxml_obj.read_token()
 
 
-def test_bxml_substitution():
+def test_bxml_substitution() -> None:
     mocked_template = Mock()
     bxml_obj = Bxml(BytesIO(b"\x01\x00\x00"), Mock())
 
@@ -59,26 +63,26 @@ def test_bxml_substitution():
     mocked_template.add_sub.assert_called_with(0x1, sub)
 
 
-def test_value_text():
+def test_value_text() -> None:
     bxml_obj = Bxml(b"\x05\x00h\x00e\x00l\x00l\x00o\x00", None)
     assert bxml_obj._read_string_value(False, Mock()) == "hello"
 
 
 @patch.object(Bxml, Bxml.read_token.__name__, return_value=" World")
-def test_value_more(_):
+def test_value_more(mock: Mock) -> None:
     bxml_obj = Bxml(b"\x05\x00H\x00e\x00l\x00l\x00o\x00", None)
     assert bxml_obj._read_string_value(True, Mock()) == "Hello World"
 
 
 @patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="data")
-def test_read_tag_and_attributes(mocked_read):
+def test_read_tag_and_attributes(mocked_read: Mock) -> None:
     tag = Bxml(None, None)._read_tag_and_attributes(False, Mock())
     assert tag.name == mocked_read.return_value
     assert len(tag.attributes) == 0
 
 
 @patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="data")
-def test_read_tag_and_attributes_attributes(mocked_tag):
+def test_read_tag_and_attributes_attributes(mocked_tag: Mock) -> None:
     with patch.object(Bxml, Bxml._read_attributes.__name__) as attributes:
         attributes.return_value = [("name", "test")]
         bxml_obj = Bxml(None, None)
@@ -96,39 +100,47 @@ def test_read_tag_and_attributes_attributes(mocked_tag):
     ],
 )
 @patch.object(Bxml, Bxml.read_token.__name__)
-def test_read_children(mocked_token, side_effects, expected_length):
+def test_read_children(mocked_token: Mock, side_effects: list[str | BxmlToken], expected_length: int) -> None:
     mocked_token.side_effect = side_effects
     bxml_obj = Bxml(None, None)
-    children = [child for child in bxml_obj._read_children(Mock())]
+    children = list(bxml_obj._read_children(Mock()))
     assert len(children) == expected_length
 
 
-@pytest.mark.parametrize(("bxml_data", "expected_output"), [(b"\x01\x01", "101"), (b"\xde\xad\xbe\xef", "adde")])
-def text_bxml_char_reference(bxml_data, expected_output):
+@pytest.mark.parametrize(
+    ("bxml_data", "expected_output"),
+    [
+        (b"\x01\x01", "101"),
+        (b"\xde\xad\xbe\xef", "adde"),
+    ],
+)
+def text_bxml_char_reference(bxml_data: bytes, expected_output: str) -> None:
     bxml_obj = Bxml(bxml_data, None)
     assert bxml_obj.read_char_reference() == "&x" + expected_output
 
 
 @pytest.mark.parametrize("data", [b"\x01", b"\x01\x00"])
 @patch.object(Bxml, Bxml._read_string_value.__name__)
-def test_bxml_value(mocked_string, data):
+def test_bxml_value(mocked_string: Mock, data: bytes) -> None:
     bxml_obj = Bxml(data, None)
     assert mocked_string.return_value == bxml_obj.read_value(Mock(), Mock())
 
 
 @pytest.mark.parametrize("data", [b"\x02", b"\x03"])
-def test_bxml_value_failed(data):
+def test_bxml_value_failed(data: bytes) -> None:
     bxml_obj = Bxml(data, None)
     with pytest.raises(BxmlException):
         bxml_obj.read_value(Mock(), Mock())
 
 
-@patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="Hello")
-def test_parse_entity_reference(_):
-    assert Bxml(None, None).read_entity_reference(False, Mock()) == "&Hello;"
+def test_parse_entity_reference() -> None:
+    with patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="Hello"):
+        assert Bxml(None, None).read_entity_reference(False, Mock()) == "&Hello;"
 
 
-@patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="Hello")
-@patch.object(Bxml, Bxml.read_token.__name__, return_value=" World")
-def test_parse_entity_more(_, __):
-    assert Bxml(None, None).read_entity_reference(True, Mock()) == "&Hello; World"
+def test_parse_entity_more() -> None:
+    with (
+        patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="Hello"),
+        patch.object(Bxml, Bxml.read_token.__name__, return_value=" World"),
+    ):
+        assert Bxml(None, None).read_entity_reference(True, Mock()) == "&Hello; World"
