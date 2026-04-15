@@ -1,44 +1,52 @@
+from __future__ import annotations
+
 import os
 import sys
 import time
-import elasticsearch.helpers
 from multiprocessing import Pool
-from itertools import imap
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import elasticsearch.helpers
 
 from dissect.eventlog import wevtutil
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 
 es = elasticsearch.Elasticsearch()
 
 
-def log(s, *args, **kwargs):
-    print(s.format(*args, **kwargs))
+def log(format_string: str, *args: tuple[Any, ...], **kwargs: dict[str, Any]) -> None:
+    print(format_string.format(*args, **kwargs))
 
 
-def iter_dir(root):
-    root = os.path.abspath(root)
-    if not os.path.isdir(root):
-        yield root
+def iter_dir(root: str) -> Iterator[tuple[Path, Path]]:
+    _root = Path(root).absolute()
+    if not _root.is_dir():
+        yield _root, None
     else:
-        for path, dirs, files in os.walk(root):
+        for path, _dirs, files in os.walk(_root):
             for filename in files:
-                if not (filename.lower().endswith(".evt") or filename.lower().endswith(".evtx")):
+                if not filename.lower().endswith((".evt", ".evtx")):
                     continue
 
-                fullpath = os.path.join(path, filename)
-                yield fullpath, os.path.relpath(fullpath, root)
+                fullpath = Path(path) / filename
+                yield fullpath, fullpath.relative_to(_root)
 
 
 class EvtxHandler:
-    outdir = None
+    outdir: Path
 
-    def __init__(self, outdir):
+    def __init__(self, outdir: Path):
         self.outdir = outdir
 
     # CPython won't pickle instance methods, therefore use a __call__
-    def __call__(self, paths):
+    def __call__(self, paths: tuple[Path, Path]):
         return self.process(paths)
 
-    def process(self, paths):
+    def process(self, paths: tuple[Path, Path]) -> tuple[Path, int, Exception | None]:
         path, relpath = paths
 
         error = None
@@ -46,15 +54,14 @@ class EvtxHandler:
         try:
             e = wevtutil.WevtutilWrapper(path)
 
-            outpath = os.path.join(self.outdir, relpath + ".log")
-            dirpath = os.path.dirname(outpath)
+            outpath = self.outdir.joinpath(relpath or path.name).with_suffix(".log")
+            dirpath = outpath.parent
 
-            if not os.path.exists(dirpath):
-                os.makedirs(dirpath)
+            if not dirpath.exists():
+                dirpath.mkdir(parents=True, exist_ok=True)
 
-            outf = open(outpath, "wb")
-            outf.writelines(imap(wevtutil.splunkify, e))
-            outf.close()
+            with outpath.open("wb") as outf:
+                outf.writelines(map(wevtutil.splunkify, e))
 
             count = e.count
         except KeyboardInterrupt:
@@ -65,15 +72,16 @@ class EvtxHandler:
         return relpath, count, error
 
 
-def main():
+def main() -> None:
     start = time.time()
     log("Starting Pool")
     pool = Pool(processes=28)
 
-    if os.path.exists(sys.argv[2]):
-        raise Exception("Output directory already exists")
+    path = Path(sys.argv[2])
+    if path.exists():
+        raise RuntimeError("Output directory already exists")
 
-    handler = EvtxHandler(sys.argv[2])
+    handler = EvtxHandler(path)
 
     total = 0
     it = iter_dir(sys.argv[1])

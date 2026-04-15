@@ -1,60 +1,55 @@
 #!/usr/bin/env python
+from __future__ import annotations
 
 import sys
-
 from datetime import datetime
+from typing import Any
 
 from dissect.eventlog import wevtutil
 from dissect.eventlog.utils import KeyValueCollection
 
 
-def repr_doublequote(s):
-    r = repr(s)
-    if r[0] == '"':
-        return r
+def repr_doublequote(string: Any) -> str:
+    result = repr(string)
+    if result[0] == '"':
+        return result
 
-    if r[0] != "'":
-        raise Exception("Unexpected repr string")
+    if result[0] != "'":
+        raise RuntimeError("Unexpected repr string")
 
-    r = r.replace('"', '\\"')
-    r = '"' + r[1:-1] + '"'
-    return r
-
-
-def splunkify_value(v):
-    if type(v) is datetime:
-        return v.isoformat() + "Z"
-
-    return v
+    result = result.replace('"', '\\"')
+    return '"' + result[1:-1] + '"'
 
 
-def splunkify(d):
-    if type(d) is KeyValueCollection:
-        it = d.items()
-    else:
-        it = d.dict().items()
+def splunkify_value(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat() + "Z"
 
-    r = []
+    return value
+
+
+def splunkify(data: KeyValueCollection | Any) -> str:
+    it = data.items() if isinstance(data, KeyValueCollection) else data.dict().items()
+
+    result = []
     ts = "Unknown"
-    for k, v in it:
-        if k == "TimeCreated_SystemTime":
-            ts = splunkify_value(v)
+    for key, value in it:
+        if key == "TimeCreated_SystemTime":
+            ts = splunkify_value(value)
             continue
 
-        if type(v) is list:
-            idx = 0
-            for i in v:
-                i = splunkify_value(i)
-                r.append(f'{k}_{idx}={repr_doublequote(str(i).encode("utf-8"))}')
-                idx += 1
+        if type(value) is list:
+            for idx, elem in enumerate(value):
+                elem = splunkify_value(elem)
+                result.append(f"{key}_{idx}={repr_doublequote(str(elem).encode('utf-8'))}")
         else:
-            v = splunkify_value(v)
-            r.append('{k}={repr_doublequote(str(v).encode("utf-8"))}')
+            value = splunkify_value(value)
+            result.append(f"{key}={repr_doublequote(str(value).encode('utf-8'))}")
 
-    return ts + " " + " ".join(r) + "\n"
+    return ts + " " + " ".join(result) + "\n"
 
 
-def main():
+def main() -> None:
     wevt = wevtutil.WevtutilWrapper(sys.argv[1])
     for r in wevt:
         print(splunkify(r))

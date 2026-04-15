@@ -1,28 +1,29 @@
 #!/usr/bin/env python
+from __future__ import annotations
 
 import sys
-
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from dissect.eventlog.bxml import BxmlSub
+from dissect.eventlog.evtx import Evtx
 from dissect.eventlog.utils import KeyValueCollection
-from dissect.eventlog import evtx
 
 
-def repr_doublequote(s):
-    r = repr(s)
-    if r[0] == '"':
-        return r
+def repr_doublequote(string: Any) -> str:
+    result = repr(string)
+    if result[0] == '"':
+        return result
 
-    if r[0] != "'":
-        raise Exception(f"Unexpected repr string: {s}")
+    if result[0] != "'":
+        raise RuntimeError(f"Unexpected repr string: {string}")
 
-    r = r.replace('"', '\\"')
-    r = '"' + r[1:-1] + '"'
-    return r
+    result = result.replace('"', '\\"')
+    return '"' + result[1:-1] + '"'
 
 
-def splunkify_value(v):
+def splunkify_value(v: BxmlSub | datetime | Any) -> Any:
     if isinstance(v, BxmlSub):
         v = v.get()
 
@@ -32,37 +33,33 @@ def splunkify_value(v):
     return v
 
 
-def splunkify(d):
-    if isinstance(d, KeyValueCollection):
-        items = d.items()
-    else:
-        items = d.dict().items()
+def splunkify(data: KeyValueCollection | Any) -> str:
+    items = data.items() if isinstance(data, KeyValueCollection) else data.dict().items()
 
-    r = []
+    result = []
     ts = "Unknown"
-    for k, v in items:
-        if k == "TimeCreated_SystemTime":
-            ts = splunkify_value(v)
+    for key, value in items:
+        if key == "TimeCreated_SystemTime":
+            ts = splunkify_value(value)
             continue
 
-        if isinstance(v, list):
-            idx = 0
-            for i in v:
-                i = splunkify_value(i)
-                r.append(f"{k}_{idx}={repr_doublequote(str(i))}")
-                idx += 1
+        if isinstance(value, list):
+            for idx, elem in enumerate(value):
+                elem = splunkify_value(elem)
+                result.append(f"{key}_{idx}={repr_doublequote(str(elem))}")
         else:
-            v = splunkify_value(v)
-            r.append(f"{k}={repr_doublequote(str(v))}")
+            value = splunkify_value(value)
+            result.append(f"{key}={repr_doublequote(str(value))}")
 
-    return f"{ts} {' '.join(r)}\n"
+    return f"{ts} {' '.join(result)}\n"
 
 
-def main():
-    for i in sys.argv[1:]:
-        e = evtx.Evtx(open(i, "rb"))
-        for r in e:
-            print(splunkify(r))
+def main() -> None:
+    for file in sys.argv[1:]:
+        with Path(file).open("rb") as fp:
+            evtx = Evtx(fp)
+            for record in evtx:
+                print(splunkify(record))
 
 
 if __name__ == "__main__":
