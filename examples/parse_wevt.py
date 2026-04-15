@@ -3,10 +3,11 @@ import argparse
 from dissect.eventlog import wevt
 
 
-if __name__ == "__main__":
+
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("wevt_file", metavar="WEVT", nargs="*", help="WEVT file to parse")
-    args, rest = parser.parse_known_args()
+    args, _rest = parser.parse_known_args()
     if not args.wevt_file:
         parser.print_help()
 
@@ -18,3 +19,7 @@ if __name__ == "__main__":
                 for wevt_type in header:
                     for wevt_obj in wevt_type:
                         print(wevt_obj)
+
+
+if __name__ == "__main__":
+    main()
