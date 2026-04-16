@@ -76,7 +76,13 @@ def test_benchmark_evtx_scrape(monkeypatch: pytest.MonkeyPatch, benchmark: Bench
 
 
 @pytest.mark.benchmark
-@pytest.mark.parametrize("path", ["_data/mpengine_etw.wevt", "_data/services.wevt"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "_data/mpengine_etw.wevt",
+        "_data/services.wevt",
+    ],
+)
 def test_benchmark_wevt(path: str, monkeypatch: pytest.MonkeyPatch, benchmark: BenchmarkFixture) -> None:
     with monkeypatch.context() as m:
         m.setattr("sys.argv", ["", str(absolute_path(path))])
@@ -86,15 +92,15 @@ def test_benchmark_wevt(path: str, monkeypatch: pytest.MonkeyPatch, benchmark: B
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize(
-    ("filename", "start_offset", "size"),
+    ("path", "start_offset", "size"),
     [
         ("_data/mpengine_etw.wevt", 0x358, 0xC8B8),
         ("_data/services.wevt", 0x114, 0x1504),
     ],
 )
-def test_benchmark_binxml_wevt(filename: str, start_offset: int, size: int, benchmark: BenchmarkFixture) -> None:
+def test_benchmark_binxml_wevt(path: str, start_offset: int, size: int, benchmark: BenchmarkFixture) -> None:
     """Tries to isolate the BinXML parsing."""
-    with absolute_path(filename).open("rb") as fh:
+    with absolute_path(path).open("rb") as fh:
         fh.seek(start_offset)
         temp = partial(TEMP, offset=start_offset, data=fh.read(size))
         benchmark(temp)
