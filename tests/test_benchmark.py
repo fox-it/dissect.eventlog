@@ -76,7 +76,7 @@ def test_benchmark_evtx_scrape(monkeypatch: pytest.MonkeyPatch, benchmark: Bench
 
 
 @pytest.mark.benchmark
-@pytest.mark.parametrize("path", ["_data/mpenging_etw.wevt", "_data/services.wevt"])
+@pytest.mark.parametrize("path", ["_data/mpengine_etw.wevt", "_data/services.wevt"])
 def test_benchmark_wevt(path: str, monkeypatch: pytest.MonkeyPatch, benchmark: BenchmarkFixture) -> None:
     with monkeypatch.context() as m:
         m.setattr("sys.argv", ["", str(absolute_path(path))])
@@ -88,7 +88,7 @@ def test_benchmark_wevt(path: str, monkeypatch: pytest.MonkeyPatch, benchmark: B
 @pytest.mark.parametrize(
     ("filename", "start_offset", "size"),
     [
-        ("_data/mpenging_etw.wevt", 0x358, 0xC8B8),
+        ("_data/mpengine_etw.wevt", 0x358, 0xC8B8),
         ("_data/services.wevt", 0x114, 0x1504),
     ],
 )
