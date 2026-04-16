@@ -26,9 +26,8 @@ if TYPE_CHECKING:
     ],
 )
 def test_benchmark_evt(path: str, benchmark: BenchmarkFixture) -> None:
-    evt_path = absolute_path(path)
-    with evt_path.open("rb") as fp:
-        evt = Evt(fp)
+    with absolute_path(path).open("rb") as fh:
+        evt = Evt(fh)
         benchmark(lambda: list(evt))
 
 
@@ -41,7 +40,6 @@ def test_benchmark_evt(path: str, benchmark: BenchmarkFixture) -> None:
     ],
 )
 def test_benchmark_evt_scrape(path: str, monkeypatch: pytest.MonkeyPatch, benchmark: BenchmarkFixture) -> None:
-    evt_path = absolute_path(path)
     with monkeypatch.context() as m:
         m.setattr("sys.argv", ["", path])
         m.setitem(sys.modules, "dissect.target", Mock())
@@ -49,23 +47,21 @@ def test_benchmark_evt_scrape(path: str, monkeypatch: pytest.MonkeyPatch, benchm
         from examples import scrape_evt
 
         with (
-            evt_path.open("rb") as fp,
-            patch("examples.scrape_evt.open_image", return_value=fp),
+            absolute_path(path).open("rb") as fh,
+            patch("examples.scrape_evt.open_image", return_value=fh),
         ):
             benchmark(scrape_evt.main)
 
 
 @pytest.mark.benchmark
 def test_benchmark_evtx(benchmark: BenchmarkFixture) -> None:
-    evtx_path = absolute_path("_data/TestLogX.evtx")
-    with evtx_path.open("rb") as fp:
-        evtx = Evtx(fp)
+    with absolute_path("_data/TestLogX.evtx").open("rb") as fh:
+        evtx = Evtx(fh)
         benchmark(lambda: list(evtx))
 
 
 @pytest.mark.benchmark
 def test_benchmark_evtx_scrape(monkeypatch: pytest.MonkeyPatch, benchmark: BenchmarkFixture) -> None:
-    evtx_path = absolute_path("_data/TestLogX.evtx")
     with monkeypatch.context() as m:
         m.setattr("sys.argv", ["", "_data/TestLogX.evtx"])
         m.setitem(sys.modules, "dissect.target", Mock())
@@ -73,8 +69,8 @@ def test_benchmark_evtx_scrape(monkeypatch: pytest.MonkeyPatch, benchmark: Bench
         from examples import scrape_evtx
 
         with (
-            evtx_path.open("rb") as fp,
-            patch("examples.scrape_evtx.open_image", return_value=fp),
+            absolute_path("_data/TestLogX.evtx").open("rb") as fh,
+            patch("examples.scrape_evtx.open_image", return_value=fh),
         ):
             benchmark(scrape_evtx.main)
 
@@ -98,8 +94,7 @@ def test_benchmark_wevt(path: str, monkeypatch: pytest.MonkeyPatch, benchmark: B
 )
 def test_benchmark_binxml_wevt(filename: str, start_offset: int, size: int, benchmark: BenchmarkFixture) -> None:
     """Tries to isolate the BinXML parsing."""
-    wevt_file = absolute_path(filename)
-    with wevt_file.open("rb") as fp:
-        fp.seek(start_offset)
-        temp = partial(TEMP, offset=start_offset, data=fp.read(size))
+    with absolute_path(filename).open("rb") as fh:
+        fh.seek(start_offset)
+        temp = partial(TEMP, offset=start_offset, data=fh.read(size))
         benchmark(temp)

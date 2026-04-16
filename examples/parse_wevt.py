@@ -7,7 +7,7 @@ from dissect.eventlog import wevt
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("wevt_file", metavar="WEVT", nargs="*", help="WEVT file to parse")
-    args, _rest = parser.parse_known_args()
+    args, _ = parser.parse_known_args()
     if not args.wevt_file:
         parser.print_help()
 
