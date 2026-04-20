@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import typing
 import importlib.util
+import typing
 from pathlib import Path
 
 import pytest
@@ -9,7 +9,7 @@ import pytest
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
 
-    
+
 HAS_BENCHMARK = importlib.util.find_spec("pytest_benchmark") is not None
 
 

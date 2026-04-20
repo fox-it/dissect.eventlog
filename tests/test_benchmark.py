@@ -9,7 +9,7 @@ import pytest
 
 from dissect.eventlog.evt import Evt
 from dissect.eventlog.evtx import Evtx
-from dissect.eventlog.wevt_object import TEMP
+from dissect.eventlog.wevt.wevt_object import TEMP
 from examples.parse_wevt import main as wevt_main
 from tests.conftest import absolute_path
 
