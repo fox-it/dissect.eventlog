@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dissect.eventlog.bxml.bxml import (
     Bxml,
+    BxmlNameReader,
     BxmlSub,
     BxmlToken,
     BxmlType,
@@ -13,6 +14,7 @@ from dissect.eventlog.bxml.bxml import (
 
 __all__ = (
     "Bxml",
+    "BxmlNameReader",
     "BxmlSub",
     "BxmlToken",
     "BxmlType",

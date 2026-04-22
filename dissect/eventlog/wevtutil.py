@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import itertools
-import string
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -14,8 +13,7 @@ if TYPE_CHECKING:
     from pathlib import Path
     from xml.etree.ElementTree import Element
 
-
-CHAR_TRANSLATION = string.maketrans("".join(map(chr, range(10))), "".join(map(str, range(10))))
+CHAR_TRANSLATION = {num: 48 + num for num in range(10)}
 
 
 class WevtutilWrapper:
@@ -66,6 +64,8 @@ class WevtutilWrapper:
         self, element: Element, path: list[Element], value_collection: KeyValueCollection
     ) -> KeyValueCollection:
         for e in element.iter():
+            if e is element:
+                continue
             self.fullmap(e, [*path, element], value_collection)
 
         if element.text:

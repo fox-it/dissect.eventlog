@@ -30,7 +30,6 @@ class WevtObject:
 
     def __repr__(self) -> str:
         """Use __slots__ to get all the data we need from the object."""
-        output_data = ""
         output_data = [item + "=" + str(getattr(self, item)) for item in self.__slots__]
         return f"{self.__class__.__name__} {' '.join(output_data)}"
 

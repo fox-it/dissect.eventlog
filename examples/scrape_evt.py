@@ -32,11 +32,11 @@ def scrape_pos(fp: BinaryIO, needle: bytes, block_size: int = BLOCK_SIZE) -> Ite
         data = saved + block
         pos = -1
         while True:
-            pos = data.find(needle, pos + 1)
+            _pos = data.find(needle, pos + 1)
             if pos == -1:
                 break
 
-            offset = pos + pos - overlap_len
+            offset = pos + _pos - overlap_len
             yield offset
 
         saved = data[-overlap_len:]
