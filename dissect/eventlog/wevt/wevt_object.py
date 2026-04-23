@@ -1,3 +1,9 @@
+"""This file contains wrappers for the different provider element types.
+
+Using information gleamed of:
+    https://github.com/libyal/libfwevt/blob/main/documentation/Windows%20Event%20manifest%20binary%20format.asciidoc
+"""
+
 from __future__ import annotations
 
 from io import BytesIO
