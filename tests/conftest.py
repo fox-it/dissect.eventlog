@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import importlib.util
+import typing
 from pathlib import Path
 
 import pytest
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 HAS_BENCHMARK = importlib.util.find_spec("pytest_benchmark") is not None
 
@@ -23,13 +28,13 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         pytest.skip("pytest-benchmark is not installed")
 
 
-def absolute_path(filename: str):
-    return Path(__file__).parent / filename
+def absolute_path(filename: str) -> Path:
+    return Path(__file__).parent.joinpath(filename).resolve()
 
 
 @pytest.fixture
-def get_absolute_path():
-    def _absolute_path(filename):
+def get_absolute_path() -> Callable[[str], Path]:
+    def _absolute_path(filename: str) -> Path:
         return absolute_path(filename)
 
     return _absolute_path

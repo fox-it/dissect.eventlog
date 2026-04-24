@@ -1,19 +1,25 @@
-from __future__ import print_function
+from __future__ import annotations
+
 import io
 import sys
+from typing import TYPE_CHECKING, BinaryIO
 
 from dissect.target import container
+
 from dissect.eventlog.evtx import ElfChnk
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
 
 BLOCK_SIZE = io.DEFAULT_BUFFER_SIZE
 
 
-def open_image(path):
+def open_image(path: Path | str) -> container.Container:
     return container.open(path)
 
 
-def scrape_pos(fp, needle, block_size=BLOCK_SIZE):
+def scrape_pos(fp: BinaryIO, needle: bytes, block_size: int = BLOCK_SIZE) -> Iterator[int]:
     needle_len = len(needle)
     overlap_len = needle_len - 1
 
@@ -36,7 +42,7 @@ def scrape_pos(fp, needle, block_size=BLOCK_SIZE):
         saved = d[-overlap_len:]
 
 
-def scrape(fp, needle, size, block_size=BLOCK_SIZE):
+def scrape(fp: BinaryIO, needle: bytes, size: int, block_size: int = BLOCK_SIZE) -> Iterator[tuple[int, bytes]]:
     needle_len = len(needle)
     overlap_len = needle_len - 1
 
@@ -71,11 +77,11 @@ def scrape(fp, needle, size, block_size=BLOCK_SIZE):
             saved = d[-overlap_len:]
 
 
-def main():
+def main() -> None:
     fp = open_image(sys.argv[1])
 
     for offset, chunk in scrape(fp, b"ElfChnk\x00", 0x10000):
-        print("ElfChnk @ 0x{:x}".format(offset), file=sys.stderr)
+        print(f"ElfChnk @ 0x{offset:x}", file=sys.stderr)
         e = ElfChnk(chunk)
         count = 0
         for r in e.read(False):

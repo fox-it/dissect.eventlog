@@ -1,4 +1,12 @@
+from __future__ import annotations
+
+import typing
+
 from dissect.eventlog.evtx import Evtx
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
 
 # $rawData = [System.Text.Encoding]::Unicode.GetBytes("Test Binary Data")
 
@@ -11,10 +19,10 @@ from dissect.eventlog.evtx import Evtx
 # Write-EventLog -Source TestAppX -LogName TestLogX -Category 1 -EntryType SuccessAudit -EventId 5 -Message "Test log message, success audit" -RawData $rawData  # noqa
 
 
-def test_evtx_parsing(get_absolute_path):
-    log_file_path = get_absolute_path("_data/TestLogX.evtx")
+def test_evtx_parsing(get_absolute_path: Callable[[str], Path]) -> None:
+    log_file_path: Path = get_absolute_path("_data/TestLogX.evtx")
 
-    with open(log_file_path, "rb") as f:
+    with log_file_path.open("rb") as f:
         records = list(Evtx(f))
 
         assert len(records) == 5

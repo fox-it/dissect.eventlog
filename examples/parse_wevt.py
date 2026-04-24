@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import argparse
+from pathlib import Path
 
-from dissect.eventlog import wevt
-
+from dissect.eventlog.wevt import wevt
 
 
 def main() -> None:
@@ -12,7 +14,7 @@ def main() -> None:
         parser.print_help()
 
     for file in args.wevt_file:
-        with open(file, "rb") as file:
+        with Path(file).open("rb") as file:
             crim = wevt.CRIM(file)
             for header in crim.wevt_headers():
                 print(header)

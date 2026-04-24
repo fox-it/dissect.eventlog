@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 extensions = [
     "autoapi.extension",
     "sphinx.ext.autodoc",
@@ -23,7 +25,6 @@ autoapi_options = [
     "show-inheritance",
     "show-module-summary",
     "special-members",
-    "imported-members",
 ]
 autoapi_keep_files = True
 autoapi_template_dir = "_templates/autoapi"
