@@ -5,6 +5,7 @@ from unittest.mock import call, patch
 
 import pytest
 
+from dissect.eventlog.bxml import BXML_TYPE
 from dissect.eventlog.wevt import wevt_object
 from tests._utils import TEMP_HEADER, create_data_item, create_header_type
 
@@ -51,13 +52,13 @@ def test_template_offset_calls(mocked_extract_name: Mock) -> None:
 
 def test_template() -> None:
     expected_values = [
-        {"name": "ProviderID", "inType": "win:GUID", "outType": "win:BINARY"},
-        {"name": "EventID", "inType": "win:UINT16", "outType": "win:UINT16"},
+        {"name": "ProviderID", "inType": BXML_TYPE.GUID, "outType": BXML_TYPE.BINARY},
+        {"name": "EventID", "inType": BXML_TYPE.UINT16, "outType": BXML_TYPE.UINT16},
     ]
 
     template: wevt_object.TEMP = wevt_object.TEMP(0xE84, TEMP_HEADER)
 
-    for index, descriptor in enumerate(template.names):
+    for index, descriptor in enumerate(template.descriptors):
         assert descriptor.name == expected_values[index]["name"]
         assert descriptor.inType == expected_values[index]["inType"]
         assert descriptor.outType == expected_values[index]["outType"]

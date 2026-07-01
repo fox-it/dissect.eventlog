@@ -7,14 +7,11 @@ Using information gleamed of:
 from __future__ import annotations
 
 from io import BytesIO
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import UUID
 
-from dissect.eventlog.bxml import Bxml, BxmlType, Template, WevtNameReader, parse_bxml
+from dissect.eventlog.bxml import Bxml, BxmlStream, Template, WevtNameReader
 from dissect.eventlog.wevt.c_wevt import c_wevt
-
-if TYPE_CHECKING:
-    from dissect.eventlog.utils import KeyValueCollection
 
 
 class WevtObject:
@@ -108,29 +105,29 @@ class EVNT(WevtObject):
 
 
 class TEMP(WevtObject):
-    __slots__ = ("identifier", "names", "offset", "template")
+    __slots__ = ("descriptors", "identifier", "offset", "template")
 
     def __init__(self, offset: int, data: bytes):
         super().__init__(offset, data)
         self.template = self._extract_bxml_template()
-
         self.identifier = UUID(bytes_le=self.header.identifier)
-        self.names: list[TEMP_DESCRIPTOR] = []
+        self.descriptors: list[TEMP_DESCRIPTOR] = []
         offset = self.data_offset
         for _ in range(self.header.nr_of_names):
             desc = TEMP_DESCRIPTOR(self.data_start + offset, self.data[offset:])
-            self.names.append(desc)
+            self.descriptors.append(desc)
             offset += len(desc.header)
 
     def _create_template_descriptor(self, start_offset: int, offset: int) -> TEMP_DESCRIPTOR:
         return TEMP_DESCRIPTOR(start_offset + offset, self.data[offset:])
 
-    def _extract_bxml_template(self) -> KeyValueCollection:
-        bxml_datastream = BytesIO(self.data[: self.data_offset])
-        bxml = Bxml(bxml_stream=bxml_datastream, elf_chunk_stream=None)
-        bxml.set_name_reader(WevtNameReader(bxml))
-        bxml.template = Template()
-        return parse_bxml(bxml)
+    def _extract_bxml_template(self) -> Template:
+        fh = BxmlStream(BytesIO(self.data[: self.data_offset]), WevtNameReader())
+        bxml = Bxml()
+        template = Template(-1, 0, self.data_offset, self.identifier)
+        template.parse(fh, bxml)
+
+        return template.root
 
 
 class TEMP_DESCRIPTOR(WevtName):
@@ -139,5 +136,5 @@ class TEMP_DESCRIPTOR(WevtName):
     def __init__(self, offset: int, data: bytes):
         super().__init__(offset, data)
 
-        self.inType = str(BxmlType(self.header.input_type))
-        self.outType = str(BxmlType(self.header.output_type))
+        self.inType = self.header.input_type
+        self.outType = self.header.output_type
