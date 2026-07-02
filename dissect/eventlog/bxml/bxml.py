@@ -36,6 +36,8 @@ if TYPE_CHECKING:
 
 
 class Element:
+    """A Bxml Element that provides a `tag` for a name and contains a value and a list of children."""
+
     __slots__ = (
         "attributes",
         "children",
@@ -137,6 +139,8 @@ class Template:
 
 
 class ValueDescriptor(Protocol):
+    """Describes what a bxml value will look like."""
+
     type: BXML_TYPE
 
     @property
@@ -144,7 +148,7 @@ class ValueDescriptor(Protocol):
 
 
 class Descriptor:
-    """Describes how a :class:`Substitution` should be interpretted when encountered in a class:`Template`."""
+    """Describes how a :class:`Substitution` should be interpretted when encountered in a :class:`Template`."""
 
     __slots__ = (
         "_fh",
@@ -311,6 +315,8 @@ class Substitution:
 
 
 class Attributes(dict[str, Value | Substitution]):
+    """A dictionary of attributes, containing their names and values."""
+
     def from_stream(self, fh: BxmlStream, template: Template | None) -> None:
         """Read attributes from a bxml stream."""
         attr_size = c_bxml.uint32(fh)
@@ -342,16 +348,16 @@ class Attributes(dict[str, Value | Substitution]):
 
 
 class BxmlName(Protocol):
-    """The interface name reader needs to follow."""
+    """An interface to facilitate different methods to read names with BXML data."""
 
     def read_name(self, fh: BxmlStream) -> str: ...
 
 
 class EvtxNameReader:
-    """An interface to facilitate different methods to read names with BXML data.
+    """An implementation to read names from an Evtx elf chunk.
 
     Args:
-        elf_chunk_data: a reference to elf data that contains the name of the data.
+        elf_chunk_fh: a reference to elf data that contains the name of the data.
     """
 
     def __init__(self, elf_chunk_fh: BinaryIO) -> None:
@@ -483,13 +489,12 @@ class Bxml:
         > BXML_END_ELEMENT
       > BXML_END
       > DESCRIPTORS
-
     """
 
     def __init__(self) -> None:
         self.templates: dict[int, Template] = {}
 
-    def parse(self, fh: BxmlStream, template: Template | None = None) -> Element | Template:
+    def parse(self, fh: BxmlStream, template: Template | None = None) -> Element | Template | None:
         """Parses the bxml stream and returns everything as either a template or fileheader."""
         depth = 0
 
@@ -588,6 +593,15 @@ def create_record(
     descriptors: list[Descriptor],
     use_dict_func: Callable[[Element, KeyValueCollection, list[Descriptor]], bool] = _stub_function,
 ) -> KeyValueCollection:
+    """Put attributes and values of a bxml element in a flat structure.
+
+    Args:
+        fh: BxmlStream to read from
+        bxml: the bxml element to store any templates in
+        elem: The bxml element to search through
+        descriptors: a list of descriptors to search through for substitutions
+        use_dict_func: An optional function to transform the result, should return `True` if it transformed the result.
+    """
     result = KeyValueCollection()
 
     if elem is None:
@@ -618,6 +632,7 @@ def create_record(
             continue
 
         # Parse subelement
+        # An attribute cannot be a BINXML element, so we get away to use offset here.
         fh.seek(item.offset)
 
         sub_elem = bxml.parse(fh)
@@ -627,6 +642,7 @@ def create_record(
 
 
 def resolve_substitution(value: Substitution | Value, descriptors: list[Descriptor]) -> ValueDescriptor:
+    """Retrieves the descriptor if it encounters a substitution."""
     if isinstance(value, Substitution):
         return descriptors[value.id]
     return value
