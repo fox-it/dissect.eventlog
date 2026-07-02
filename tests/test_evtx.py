@@ -27,9 +27,9 @@ def test_evtx_parsing(get_absolute_path: Callable[[str], Path]) -> None:
 
         assert len(records) == 5
 
-        assert {r["Computer"] for r in records} == {"DESKTOP-PJOQLJS"}
-        assert {r["Provider_Name"] for r in records} == {"TestAppX"}
-        assert {r["Channel"] for r in records} == {"TestLogX"}
+        assert {r["Computer"].value for r in records} == {"DESKTOP-PJOQLJS"}
+        assert {r["Provider_Name"].value for r in records} == {"TestAppX"}
+        assert {r["Channel"].value for r in records} == {"TestLogX"}
 
         # https://github.com/libyal/libevtx/blob/main/documentation/Windows%20XML%20Event%20Log%20(EVTX).asciidoc#52-level
         event_levels = {
@@ -46,17 +46,17 @@ def test_evtx_parsing(get_absolute_path: Callable[[str], Path]) -> None:
             (event_levels["Warning"], 3, 1, "Test log message, warning"),
             (event_levels["FailureAudit"], 65534, 99, "Test log message, failure audit"),
             (event_levels["SuccessAudit"], 5, 1, "Test log message, success audit"),
-        ] == [(r["Level"], r["EventID"], r["Task"], r["Data"][0]) for r in records]
+        ] == [(r["Level"].value, r["EventID"].value, r["Task"].value, r["Data"].value) for r in records]
 
         events_with_data = records[-2:]
 
         # other records have no Data
-        assert not records[0]["Binary"]
+        assert not records[0]["Binary"].value
 
-        assert events_with_data[0]["Binary"]
-        data1 = events_with_data[0]["Binary"]
+        assert events_with_data[0]["Binary"].value
+        data1 = events_with_data[0]["Binary"].value
         assert bytearray.fromhex(data1.decode()).decode("utf-16") == "Test Binary Data"
 
-        assert events_with_data[1]["Binary"]
-        data2 = events_with_data[1]["Binary"]
+        assert events_with_data[1]["Binary"].value
+        data2 = events_with_data[1]["Binary"].value
         assert bytearray.fromhex(data2.decode()).decode("utf-16") == "Test Binary Data"

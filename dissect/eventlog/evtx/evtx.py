@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, BinaryIO
 
 from dissect.eventlog.bxml import (
     Bxml,
-    BxmlNameReader,
     BxmlStream,
+    EvtxNameReader,
     parse_bxml,
     resolve_substitution,
 )
@@ -58,7 +58,7 @@ class ElfChnk:
         self.templates = {}
         self.data_offset = 0
         self.bxml = Bxml()
-        self.reader = BxmlNameReader(self.stream)
+        self.reader = EvtxNameReader(self.stream)
 
     def read(self, records: bool = True) -> Iterator[KeyValueCollection]:
         try:

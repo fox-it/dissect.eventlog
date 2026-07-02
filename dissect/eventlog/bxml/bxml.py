@@ -1,4 +1,9 @@
-"""Binary XML classes."""
+"""Binary XML classes.
+
+Reference:
+  - https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/18000371-ae6d-45f7-95f3-249cbe2be39b
+  - https://github.com/libyal/libevtx/blob/main/documentation/Windows%20XML%20Event%20Log%20(EVTX).asciidoc
+"""
 
 from __future__ import annotations
 
@@ -13,7 +18,6 @@ from uuid import UUID
 from dissect.util.stream import BufferedStream
 
 from dissect.eventlog.bxml.c_bxml import (
-    ATTRIBUTE_READERS,
     BXML_TOKEN,
     BXML_TYPE,
     DYNAMIC_LENGTH_TYPES,
@@ -257,12 +261,14 @@ class Value:
         _type = BXML_TYPE(c_bxml.uint8(fh))
         if _type not in DYNAMIC_LENGTH_TYPES:
             data = fh.read(len(TYPE_READERS[_type]))
+        elif _type == BXML_TYPE.STRING:
+            data = c_bxml.BXML_VALUE_TEXT(fh).value
         elif _type == BXML_TYPE.NULL:
             data = b""
         elif _type == BXML_TYPE.BINARY:
             data = fh.read()
         else:
-            data = ATTRIBUTE_READERS.get(_type)(fh)
+            data = TYPE_READERS.get(_type)(fh)
         return cls(_type, data)
 
     @property
@@ -270,15 +276,11 @@ class Value:
         if self._value is not None:
             return self._value
 
-        if self.type is BXML_TYPE.STRING:
-            self._value = self._data.value
-            return self._value
-
-        if not isinstance(self._data, bytes) or self.type == BXML_TYPE.BINARY:
+        if not isinstance(self._data, bytes) or self.type in DYNAMIC_LENGTH_TYPES:
             self._value = self._data
             return self._value
 
-        _value = ATTRIBUTE_READERS.get(self.type)
+        _value = TYPE_READERS.get(self.type)
         if _value is None:
             raise BxmlException(f"Unexpected value type {self.type:x}")
         self._value = _value(self._data)
@@ -340,16 +342,22 @@ class Attributes(dict[str, Value | Substitution]):
 
 
 class BxmlName(Protocol):
-    def read(self, fh: BxmlStream) -> str: ...
+    """The interface name reader needs to follow."""
+
+    def read_name(self, fh: BxmlStream) -> str: ...
 
 
-class BxmlNameReader:
-    """An interface to facilitate different methods to read names with BXML data."""
+class EvtxNameReader:
+    """An interface to facilitate different methods to read names with BXML data.
 
-    def __init__(self, fh: BinaryIO) -> None:
-        self.fh: BinaryIO = fh
+    Args:
+        elf_chunk_data: a reference to elf data that contains the name of the data.
+    """
 
-    def read(self, fh: BxmlStream) -> str:
+    def __init__(self, elf_chunk_fh: BinaryIO) -> None:
+        self.fh: BinaryIO = elf_chunk_fh
+
+    def read_name(self, fh: BxmlStream) -> str:
         """Read name from BXML data.
 
         If the offset is outside the BXML data range elf_chunk data is used.
@@ -360,6 +368,7 @@ class BxmlNameReader:
             if fh.read(2) != b"\x00\x00":
                 raise BxmlException("No padding after BXML_NAME")
         else:
+            # We need to jump back to the offset, otherwise i
             pos = self.fh.tell()
             self.fh.seek(offset)
             name = c_bxml.BXML_NAME(self.fh)
@@ -369,7 +378,7 @@ class BxmlNameReader:
 
 
 class WevtNameReader:
-    def read(self, fh: BxmlStream) -> str:
+    def read_name(self, fh: BxmlStream) -> str:
         _hash = c_bxml.uint16(fh)
         name = c_bxml.BXML_VALUE_TEXT(fh)
         if fh.read(2) != b"\x00\x00":
@@ -381,21 +390,22 @@ class Token:
     TOKEN_MASK: int = 0x1F
     MORE_MASK: int = 0x40
 
-    __slots__ = (
-        "flags",
-        "has_more",
-        "token",
-    )
+    __slots__ = ("_token",)
 
     def __init__(self, token: int) -> None:
-        self.flags: int = token & ~self.TOKEN_MASK
-        self.has_more: bool = bool(self.flags & self.MORE_MASK)
-        self.token: BXML_TOKEN = BXML_TOKEN(token & self.TOKEN_MASK)
+        self._token: int = token
 
-    def __eq__(self, other: BXML_TOKEN | Any) -> bool:
-        if isinstance(other, BXML_TOKEN):
-            return self.token == other
-        return False
+    @property
+    def has_more(self) -> bool:
+        return bool(self._token & self.MORE_MASK)
+
+    @property
+    def flags(self) -> int:
+        return self._token & ~self.TOKEN_MASK
+
+    @property
+    def token(self) -> BXML_TOKEN:
+        return BXML_TOKEN(self._token & self.TOKEN_MASK)
 
     def __repr__(self) -> str:
         return f"<TOKEN_BXML {self.flags=}, {self.token=}, {self.has_more=}>"
@@ -415,11 +425,12 @@ class BxmlStream(BufferedStream):
         self.__queue = deque()
         self.__current: Token = None
 
-        self.read_name = partial(reader.read, self)
+        self.read_name = partial(reader.read_name, self)
 
     read_name: Callable[[], str] = None
 
     def seek(self, pos: int, whence: int = io.SEEK_SET) -> int:
+        self.__current = None
         seek_pos = max(0, pos - self.bxml_offset)
         return self.bxml_offset + self._fh.seek(seek_pos, whence)
 
@@ -435,7 +446,7 @@ class BxmlStream(BufferedStream):
         result = self.__queue.pop()
         if n > 0:
             n = n - 1
-        return result + self._fh.read(n)
+        return result._token.dumps() + self._fh.read(n)
 
     def next(self) -> Token:
         if self.__queue:
@@ -475,7 +486,7 @@ class Bxml:
 
     """
 
-    def __init__(self, data_offset: int = 0, template: Template | None = None) -> None:
+    def __init__(self) -> None:
         self.templates: dict[int, Template] = {}
 
     def parse(self, fh: BxmlStream, template: Template | None = None) -> Element | Template:
@@ -485,8 +496,7 @@ class Bxml:
         element: Element | None = None
 
         while True:
-            token = fh.next()
-            _token = token.token
+            _token = fh.next().token
 
             if _token == BXML_TOKEN.BXML_FRAGMENT_HEADER:
                 _ = c_bxml.BXML_FRAGMENT_HEADER(fh)
@@ -500,7 +510,7 @@ class Bxml:
                 continue
             if _token in (BXML_TOKEN.BXML_END_ELEMENT, BXML_TOKEN.BXML_CLOSE_EMPTY_ELEMENT_TAG):
                 if depth == 0:
-                    raise RuntimeError("Cannot end a element if it never started")
+                    raise RuntimeError("Cannot end an element if it never started")
                 depth -= 1
                 element = element.parent if element.parent is not None else element
                 continue
@@ -513,12 +523,12 @@ class Bxml:
                 return self._read_template_reference(fh)
             if _token == BXML_TOKEN.BXML_VALUE:
                 if element is None:
-                    raise RuntimeError("Cannot parse value for undefined element")
+                    raise RuntimeError("Cannot parse value for an undefined element")
                 element.value = Value.from_stream(fh)
                 continue
             if _token == BXML_TOKEN.BXML_END:
                 if depth != 0:
-                    raise RuntimeError("Found an unclosed element")
+                    raise RuntimeError("Found an unexpected end of the bxml stream")
                 break
         return element
 

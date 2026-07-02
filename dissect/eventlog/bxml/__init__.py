@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dissect.eventlog.bxml.bxml import (
     Bxml,
-    BxmlNameReader,
     BxmlStream,
     Descriptor,
     Element,
+    EvtxNameReader,
     Template,
     WevtNameReader,
     parse_bxml,
@@ -17,10 +17,10 @@ __all__ = (
     "BXML_TOKEN",
     "BXML_TYPE",
     "Bxml",
-    "BxmlNameReader",
     "BxmlStream",
     "Descriptor",
     "Element",
+    "EvtxNameReader",
     "Template",
     "WevtNameReader",
     "parse_bxml",

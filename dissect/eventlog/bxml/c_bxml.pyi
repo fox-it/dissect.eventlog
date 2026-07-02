@@ -3,7 +3,6 @@ from collections.abc import Callable
 from typing import Any, BinaryIO, TypeAlias, overload
 
 import dissect.cstruct as __cs__
-from dissect.cstruct.types import BaseType
 
 class _c_bxml(__cs__.cstruct):
     class BXML_TOKEN(__cs__.Enum):
@@ -200,7 +199,6 @@ c_bxml: TypeAlias = _c_bxml
 BXML_TYPE: TypeAlias = c_bxml.BXML_TYPE
 BXML_TOKEN: TypeAlias = c_bxml.BXML_TOKEN
 
-TYPE_READERS: dict[BXML_TYPE, BaseType]
+TYPE_READERS: dict[BXML_TYPE, Callable[[BinaryIO | bytes], Any]]
 DYNAMIC_LENGTH_TYPES: tuple[BXML_TYPE, ...]
-ATTRIBUTE_READERS: dict[BXML_TYPE, BaseType]
 TYPE_TRANSFORMERS: dict[BXML_TYPE, Callable[[BinaryIO], Any]]

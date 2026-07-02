@@ -4,13 +4,13 @@ import binascii
 import uuid
 from datetime import datetime
 from functools import partial
-from typing import TYPE_CHECKING, BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 from dissect.cstruct import cstruct
 from dissect.util.ts import wintimestamp
 
 if TYPE_CHECKING:
-    from dissect.cstruct.types import BaseType
+    from collections.abc import Callable
 
 bxml_def = """
 
@@ -177,7 +177,7 @@ def _read_hexidecimal_int(stream: BinaryIO, value_size: int) -> str:
 BXML_TYPE = c_bxml.BXML_TYPE
 BXML_TOKEN = c_bxml.BXML_TOKEN
 
-TYPE_READERS: dict[BXML_TYPE, BaseType] = {
+TYPE_READERS: dict[BXML_TYPE, Callable[[BinaryIO | bytes], Any]] = {
     BXML_TYPE.NULL: lambda s: None,
     BXML_TYPE.STRING: c_bxml.wchar[None],
     BXML_TYPE.ANSISTRING: c_bxml.char[None],
@@ -194,6 +194,9 @@ TYPE_READERS: dict[BXML_TYPE, BaseType] = {
     BXML_TYPE.BOOL: c_bxml.uint8,
     BXML_TYPE.BINARY: lambda s: None,
     BXML_TYPE.GUID: c_bxml.uint8[16],
+    # NOTE: SIZET changes depending on the target operating that was used to record the file.
+    # There is currently no way to determine that in bxml and the value type has no concept of the size
+    # of the value. So it is unsure if SIZET will work as it is.
     BXML_TYPE.SIZET: lambda stream: c_bxml.uint32 if stream.getvalue() == 4 else c_bxml.uint64,
     BXML_TYPE.FILETIME: c_bxml.uint64,
     BXML_TYPE.SYSTEMTIME: c_bxml.SYSTEMTIME,
@@ -202,7 +205,7 @@ TYPE_READERS: dict[BXML_TYPE, BaseType] = {
     BXML_TYPE.HEXINT64: c_bxml.uint64,
 }
 
-DYNAMIC_LENGTH_TYPES = (
+DYNAMIC_LENGTH_TYPES: tuple[BXML_TYPE, ...] = (
     BXML_TYPE.NULL,
     BXML_TYPE.STRING,
     BXML_TYPE.ANSISTRING,
@@ -211,14 +214,7 @@ DYNAMIC_LENGTH_TYPES = (
     BXML_TYPE.SID,
 )
 
-
-ATTRIBUTE_READERS: dict[BXML_TYPE, BaseType] = {
-    **TYPE_READERS,
-    BXML_TYPE.STRING: c_bxml.BXML_VALUE_TEXT,
-}
-
-
-TYPE_TRANSFORMERS = {
+TYPE_TRANSFORMERS: dict[BXML_TYPE, Callable[[BinaryIO | bytes], Any]] = {
     **TYPE_READERS,
     BXML_TYPE.GUID: read_guid,
     BXML_TYPE.SID: read_sid,
