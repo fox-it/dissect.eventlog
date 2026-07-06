@@ -14,6 +14,7 @@ from dissect.eventlog.bxml import (
     parse_bxml,
     resolve_substitution,
 )
+from dissect.eventlog.bxml.c_bxml import BXML_TYPE
 from dissect.eventlog.evtx.c_evtx import c_evtx
 from dissect.eventlog.exceptions import MalformedElfChnkException
 from dissect.eventlog.utils import KeyValueCollection
@@ -78,8 +79,10 @@ class ElfChnk:
 
                 bxml_fh = BxmlStream(io.BytesIO(r.data), self.reader, bxml_offset=offset + 24)
                 rec = next(parse_bxml(bxml_fh, self.bxml, _data_func), {})
+
+                time = rec.get("TimeCreated_SystemTime")
                 # Validate record
-                if "TimeCreated_SystemTime" not in rec or (rec["TimeCreated_SystemTime"].value is None):
+                if time is None or time.type == BXML_TYPE.NULL:
                     log.warning("Missing timestamp in record")
                     continue
 

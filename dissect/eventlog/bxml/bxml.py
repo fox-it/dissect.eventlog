@@ -21,6 +21,7 @@ from dissect.eventlog.bxml.c_bxml import (
     BXML_TOKEN,
     BXML_TYPE,
     DYNAMIC_LENGTH_TYPES,
+    STATIC_TYPE_LENGTHS,
     TYPE_READERS,
     TYPE_TRANSFORMERS,
     c_bxml,
@@ -184,9 +185,11 @@ class Descriptor:
         output = []
         entries = c_bxml.uint32(fh)
 
-        data_offset = fh.tell() + entries * len(c_bxml.BXML_TEMPLATE_VALUE_DESC)
+        desc_class = c_bxml.BXML_TEMPLATE_VALUE_DESC
+
+        data_offset = fh.tell() + entries * len(desc_class)
         for _ in range(entries):
-            desc = cls.from_fh(fh, data_offset)
+            desc = cls(fh, desc_class(fh), data_offset)
             output.append(desc)
             data_offset += desc.size
         # We didn't actually read the descriptors, so we skip over them to speed up the process a bit
@@ -263,8 +266,8 @@ class Value:
     @classmethod
     def from_stream(cls, fh: BinaryIO) -> Self:
         _type = BXML_TYPE(c_bxml.uint8(fh))
-        if _type not in DYNAMIC_LENGTH_TYPES:
-            data = fh.read(len(TYPE_READERS[_type]))
+        if length := STATIC_TYPE_LENGTHS.get(_type):
+            data = fh.read(length)
         elif _type == BXML_TYPE.STRING:
             data = c_bxml.BXML_VALUE_TEXT(fh).value
         elif _type == BXML_TYPE.NULL:
