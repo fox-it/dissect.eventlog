@@ -43,23 +43,23 @@ def test_bxml_reader(evtx_template: BxmlStream) -> None:
     assert evtx_template.current() is None
 
     # Check whether current gets updated
-    assert evtx_template.next().token == BXML_TOKEN.BXML_FRAGMENT_HEADER
-    assert evtx_template.current().token == BXML_TOKEN.BXML_FRAGMENT_HEADER
+    assert evtx_template.next().token == BXML_TOKEN.FRAGMENT_HEADER
+    assert evtx_template.current().token == BXML_TOKEN.FRAGMENT_HEADER
 
     # Check if reading includes the peeked element (0x0F)
     evtx_template.seek(0)
     assert evtx_template.current() is None
-    assert evtx_template.peek_next().token == BXML_TOKEN.BXML_FRAGMENT_HEADER
+    assert evtx_template.peek_next().token == BXML_TOKEN.FRAGMENT_HEADER
     assert evtx_template.read(10) == b"\x0f\x01\x01\x00\x0c\x01_fl@"
     assert evtx_template.current() is None
 
     # Check whether the internal queue gets used
     evtx_template.seek(0)
     assert evtx_template.current() is None
-    assert evtx_template.peek_next().token == BXML_TOKEN.BXML_FRAGMENT_HEADER
+    assert evtx_template.peek_next().token == BXML_TOKEN.FRAGMENT_HEADER
     assert evtx_template.current() is None
-    assert evtx_template.next().token == BXML_TOKEN.BXML_FRAGMENT_HEADER
-    assert evtx_template.current().token == BXML_TOKEN.BXML_FRAGMENT_HEADER
+    assert evtx_template.next().token == BXML_TOKEN.FRAGMENT_HEADER
+    assert evtx_template.current().token == BXML_TOKEN.FRAGMENT_HEADER
 
 
 def test_read_template(evtx_template: BxmlStream) -> None:

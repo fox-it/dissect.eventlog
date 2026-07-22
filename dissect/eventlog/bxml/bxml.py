@@ -20,7 +20,6 @@ from dissect.util.stream import BufferedStream
 from dissect.eventlog.bxml.c_bxml import (
     BXML_TOKEN,
     BXML_TYPE,
-    DYNAMIC_LENGTH_TYPES,
     STATIC_TYPE_LENGTHS,
     TYPE_READERS,
     TYPE_TRANSFORMERS,
@@ -81,11 +80,11 @@ class Element:
 
         _token = fh.peek_next().token
         if _token not in (
-            BXML_TOKEN.BXML_CLOSE_START_ELEMENT_TAG,
-            BXML_TOKEN.BXML_CLOSE_EMPTY_ELEMENT_TAG,
+            BXML_TOKEN.CLOSE_START_ELEMENT_TAG,
+            BXML_TOKEN.CLOSE_EMPTY_ELEMENT_TAG,
         ):
             raise RuntimeError("Expected the tag to get closed.")
-        elem.empty = _token == BXML_TOKEN.BXML_CLOSE_EMPTY_ELEMENT_TAG
+        elem.empty = _token == BXML_TOKEN.CLOSE_EMPTY_ELEMENT_TAG
         if not elem.empty:
             # Consume the start element tag
             fh.next()
@@ -283,7 +282,7 @@ class Value:
         if self._value is not None:
             return self._value
 
-        if not isinstance(self._data, bytes) or self.type in DYNAMIC_LENGTH_TYPES:
+        if not isinstance(self._data, bytes) or self.type not in STATIC_TYPE_LENGTHS:
             self._value = self._data
             return self._value
 
@@ -329,24 +328,24 @@ class Attributes(dict[str, Value | Substitution]):
         _reader = fh.read_name
         while fh.tell() < attr_end:
             token = _next().token
-            if token != BXML_TOKEN.BXML_ATTRIBUTE:
+            if token != BXML_TOKEN.ATTRIBUTE:
                 raise RuntimeError("Expected a BXML_ATTRIBUTE")
 
             name = _reader()
             token = _next().token
             if token not in (
-                BXML_TOKEN.BXML_VALUE,
-                BXML_TOKEN.BXML_TOKEN_NORMAL_SUBSTITUTION,
-                BXML_TOKEN.BXML_TOKEN_OPTIONAL_SUBSTITUTION,
+                BXML_TOKEN.VALUE,
+                BXML_TOKEN.NORMAL_SUBSTITUTION,
+                BXML_TOKEN.OPTIONAL_SUBSTITUTION,
             ):
                 raise RuntimeError("Expected a BXML_VALUE or SUBSTITUTION after a bxml attribute")
 
-            if token is BXML_TOKEN.BXML_VALUE:
+            if token is BXML_TOKEN.VALUE:
                 value = Value.from_stream(fh)
             elif template is None:
                 raise RuntimeError("Cannot use a substitution without a template")
             else:
-                value = Substitution.from_fh(fh, token is BXML_TOKEN.BXML_TOKEN_OPTIONAL_SUBSTITUTION)
+                value = Substitution.from_fh(fh, token is BXML_TOKEN.OPTIONAL_SUBSTITUTION)
             self.update({name: value})
 
 
@@ -506,35 +505,35 @@ class Bxml:
         while True:
             _token = fh.next().token
 
-            if _token == BXML_TOKEN.BXML_FRAGMENT_HEADER:
+            if _token == BXML_TOKEN.FRAGMENT_HEADER:
                 _ = c_bxml.BXML_FRAGMENT_HEADER(fh)
                 continue
-            if _token == BXML_TOKEN.BXML_START_ELEMENT:
+            if _token == BXML_TOKEN.START_ELEMENT_TAG:
                 depth += 1
                 _element = Element.from_stream(fh, template)
                 if element:
                     element.add_child(_element)
                 element = _element
                 continue
-            if _token in (BXML_TOKEN.BXML_END_ELEMENT, BXML_TOKEN.BXML_CLOSE_EMPTY_ELEMENT_TAG):
+            if _token in (BXML_TOKEN.END_ELEMENT, BXML_TOKEN.CLOSE_EMPTY_ELEMENT_TAG):
                 if depth == 0:
                     raise RuntimeError("Cannot end an element if it never started")
                 depth -= 1
                 element = element.parent if element.parent is not None else element
                 continue
-            if _token in (BXML_TOKEN.BXML_TOKEN_NORMAL_SUBSTITUTION, BXML_TOKEN.BXML_TOKEN_OPTIONAL_SUBSTITUTION):
+            if _token in (BXML_TOKEN.NORMAL_SUBSTITUTION, BXML_TOKEN.OPTIONAL_SUBSTITUTION):
                 if template is None:
                     raise RuntimeError("Cannot use a substitution without a template")
-                element.value = Substitution.from_fh(fh, _token is BXML_TOKEN.BXML_TOKEN_OPTIONAL_SUBSTITUTION)
+                element.value = Substitution.from_fh(fh, _token is BXML_TOKEN.OPTIONAL_SUBSTITUTION)
                 continue
-            if _token == BXML_TOKEN.BXML_TEMPLATE_INSTANCE:
+            if _token == BXML_TOKEN.TEMPLATE_INSTANCE:
                 return self._read_template_reference(fh)
-            if _token == BXML_TOKEN.BXML_VALUE:
+            if _token == BXML_TOKEN.VALUE:
                 if element is None:
                     raise RuntimeError("Cannot parse value for an undefined element")
                 element.value = Value.from_stream(fh)
                 continue
-            if _token == BXML_TOKEN.BXML_END:
+            if _token == BXML_TOKEN.END:
                 if depth != 0:
                     raise RuntimeError("Found an unexpected end of the bxml stream")
                 break
