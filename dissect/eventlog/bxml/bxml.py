@@ -107,35 +107,34 @@ class Template:
         "uuid",
     )
 
-    def __init__(self, identifier: int, offset: int, size: int, uuid: UUID) -> None:
+    def __init__(self, identifier: int, offset: int, size: int, uuid: UUID, fh: BxmlStream, bxml: Bxml) -> None:
         self.identifier: int = identifier
         self.offset: int = offset
-        self.root: Element | None = None
         self.size: int = size
         self.uuid: UUID = uuid
+        self.root: Element = self._parse(fh, bxml)
 
     def __repr__(self) -> str:
         return f"<Template {self.identifier=} {self.offset=:X}, {self.size=:X}>"
 
     @classmethod
-    def from_fh(cls, fh: BinaryIO, reference: c_bxml.BXML_TEMPLATE_REFERENCE) -> Self:
+    def from_fh(cls, fh: BxmlStream, reference: c_bxml.BXML_TEMPLATE_REFERENCE, bxml: Bxml) -> Self:
         definition = c_bxml.BXML_TEMPLATE_DEFINITION(fh)
         return cls(
             identifier=reference.template_id,
             offset=reference.offset + len(definition),
             size=definition.data_size,
             uuid=UUID(bytes_le=definition.identifier),
+            fh=fh,
+            bxml=bxml,
         )
 
-    def parse(self, fh: BxmlStream, bxml: Bxml) -> None:
-        if self.root is not None:
-            return
-
+    def _parse(self, fh: BxmlStream, bxml: Bxml) -> Element:
         fh.seek(self.offset)
-        self.root = bxml.parse(fh, self)
-
+        elem = bxml.parse(fh, self)
         if fh.tell() > self.offset + self.size:
             raise RuntimeError("Read the offset too far")
+        return elem
 
 
 class ValueDescriptor(Protocol):
@@ -537,7 +536,7 @@ class Bxml:
                 element.value = f"&x{c_bxml.uint16(fh):x};"
                 continue
             if _token == BXML_TOKEN.ENTITY_REFERENCE:
-                # NOTE: Couldn't find any reference that there was more data after an entity reference
+                # NOTE: Couldn't find any reference that about more data after a entity reference
                 element.value = f"&{fh.read_name()};"
                 continue
             if _token == BXML_TOKEN.END:
@@ -556,10 +555,11 @@ class Bxml:
 
         if reference.offset == fh.tell():
             # We have a BXML template definition on our hands
-            template = Template.from_fh(fh, reference)
+            template = Template.from_fh(fh, reference, self)
             self.templates[reference.template_id] = template
+            return template
 
-        return template
+        raise RuntimeError("Something went wrong, couldn't parse template at the current offset.")
 
 
 def _stub_function(elem: Element, result: KeyValueCollection, descriptors: list[Descriptor]) -> bool:
@@ -569,30 +569,35 @@ def _stub_function(elem: Element, result: KeyValueCollection, descriptors: list[
 def parse_bxml(
     fh: BxmlStream,
     bxml: Bxml,
-    use_dict_func: Callable[[Element, KeyValueCollection, list[Descriptor]], bool] = _stub_function,
+    transform_func: Callable[[Element, KeyValueCollection, list[Descriptor]], bool] = _stub_function,
 ) -> Iterator[KeyValueCollection]:
+    """Parse the bxml stream.
+
+    Args:
+        fh: BxmlStream to read from
+        bxml: A Bxml instance used to parse the bxml stream.
+        transform_func: An optional function that transforms the input. Returns `True` if anything changed.
+    """
     curr_pos = fh.tell()
     size = fh.seek(0, io.SEEK_END)
     fh.seek(curr_pos, io.SEEK_SET)
     while fh.tell() != size:
         elem = bxml.parse(fh)
-        elem, descriptors = _get_element(fh, bxml, elem)
-        if output := create_record(fh, bxml, elem, descriptors, use_dict_func):
+        elem, descriptors = _get_element(fh, elem)
+        if output := create_record(fh, bxml, elem, descriptors, transform_func):
             yield output
 
 
 def _get_element(
     fh: BxmlStream,
-    bxml: Bxml,
     elem: Element | Template,
 ) -> tuple[Element, list[Descriptor]]:
     if isinstance(elem, Template):
-        elem.parse(fh, bxml)
-        descriptors = Descriptor.read_descriptors(fh)
         _elem = elem.root
+        descriptors = Descriptor.read_descriptors(fh)
     else:
-        descriptors = []
         _elem = elem
+        descriptors = []
 
     return _elem, descriptors
 
@@ -602,7 +607,7 @@ def create_record(
     bxml: Bxml,
     elem: Element | None,
     descriptors: list[Descriptor],
-    use_dict_func: Callable[[Element, KeyValueCollection, list[Descriptor]], bool] = _stub_function,
+    transform_func: Callable[[Element, KeyValueCollection, list[Descriptor]], bool] = _stub_function,
 ) -> KeyValueCollection:
     """Put attributes and values of a bxml element in a flat structure.
 
@@ -611,7 +616,7 @@ def create_record(
         bxml: the bxml element to store any templates in
         elem: The bxml element to search through
         descriptors: a list of descriptors to search through for substitutions
-        use_dict_func: An optional function to transform the result, should return `True` if it transformed the result.
+        transform_func: An optional function that transforms the input. Returns `True` if anything changed.
     """
     result = KeyValueCollection()
 
@@ -625,7 +630,7 @@ def create_record(
 
         elements.extend(current.children)
 
-        if use_dict_func(current, result, descriptors):
+        if transform_func(current, result, descriptors):
             continue
 
         for name, attribute in current.attributes.items():
@@ -647,8 +652,8 @@ def create_record(
         fh.seek(item.offset)
 
         sub_elem = bxml.parse(fh)
-        _elem, _new_descriptors = _get_element(fh, bxml, sub_elem)
-        result.update(create_record(fh, bxml, _elem, _new_descriptors, use_dict_func))
+        _elem, _new_descriptors = _get_element(fh, sub_elem)
+        result.update(create_record(fh, bxml, _elem, _new_descriptors, transform_func))
     return result
 
 

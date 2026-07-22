@@ -70,7 +70,7 @@ def test_read_template(evtx_template: BxmlStream) -> None:
     assert isinstance(temp, Template)
     assert temp.identifier == 1080845919
     assert temp.uuid == UUID("406c665f-7934-5303-7648-8e8950058505")
-    assert temp.root is None
+    assert temp.root is not None
 
     assert temp.identifier in bxml.templates
 
@@ -78,7 +78,7 @@ def test_read_template(evtx_template: BxmlStream) -> None:
 def test_read_element(evtx_template: BxmlStream) -> None:
     bxml = Bxml()
     temp: Template = bxml.parse(evtx_template)
-    elem: Element = bxml.parse(evtx_template, temp)
+    elem = temp.root
 
     assert isinstance(elem, Element)
     assert elem.tag == "Event"
@@ -149,8 +149,7 @@ def test_unexpected_end() -> None:
 
 def test_read_descriptors(evtx_template: BxmlStream) -> None:
     bxml = Bxml()
-    temp: Template = bxml.parse(evtx_template)
-    temp.parse(evtx_template, bxml)
+    _temp: Template = bxml.parse(evtx_template)
 
     descriptors = Descriptor.read_descriptors(evtx_template)
 
@@ -164,8 +163,7 @@ def test_read_descriptors(evtx_template: BxmlStream) -> None:
     # parse the bxml underneath
     bxml_desc = descriptors[-1]
     evtx_template.seek(bxml_desc.offset)
-    temp1 = bxml.parse(evtx_template)
-    temp1.parse(evtx_template, bxml)
+    _temp1: Template = bxml.parse(evtx_template)
 
     desc1 = Descriptor.read_descriptors(evtx_template)
     assert len(desc1) == 3
@@ -177,7 +175,6 @@ def test_read_descriptors(evtx_template: BxmlStream) -> None:
 def test_create_record(evtx_template: BxmlStream) -> None:
     bxml = Bxml()
     temp: Template = bxml.parse(evtx_template)
-    temp.parse(evtx_template, bxml)
 
     descriptors = Descriptor.read_descriptors(evtx_template)
     record = create_record(evtx_template, bxml, temp.root, descriptors)

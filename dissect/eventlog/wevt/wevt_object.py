@@ -124,9 +124,7 @@ class TEMP(WevtObject):
     def _extract_bxml_template(self) -> Template:
         fh = BxmlStream(BytesIO(self.data[: self.data_offset]), WevtNameReader())
         bxml = Bxml()
-        template = Template(-1, 0, self.data_offset, self.identifier)
-        template.parse(fh, bxml)
-
+        template = Template(-1, 0, self.data_offset, self.identifier, fh, bxml)
         return template.root
 
 
