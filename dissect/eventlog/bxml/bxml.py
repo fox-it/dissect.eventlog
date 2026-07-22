@@ -544,6 +544,8 @@ class Bxml:
                 if depth != 0:
                     raise RuntimeError("Found an unexpected end of the bxml stream")
                 break
+
+            raise RuntimeError("Unknown token found")
         return element
 
     def _read_template_reference(self, fh: BxmlStream) -> Template:
