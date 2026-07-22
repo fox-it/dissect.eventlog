@@ -59,7 +59,7 @@ class Element:
         self.parent: Element = None
         self.size: int = size
         self.tag: str = tag
-        self.value: Value | Substitution = None
+        self.value: Value | Substitution | str = None
 
     def __repr__(self) -> str:
         suffix = "/" if self.empty else ""
@@ -532,6 +532,13 @@ class Bxml:
                 if element is None:
                     raise RuntimeError("Cannot parse value for an undefined element")
                 element.value = Value.from_stream(fh)
+                continue
+            if _token == BXML_TOKEN.CHAR_REFERENCE:
+                element.value = f"&x{c_bxml.uint16(fh):x};"
+                continue
+            if _token == BXML_TOKEN.ENTITY_REFERENCE:
+                # NOTE: Couldn't find any reference that there was more data after an entity reference
+                element.value = f"&{fh.read_name()};"
                 continue
             if _token == BXML_TOKEN.END:
                 if depth != 0:
