@@ -1,146 +1,214 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from uuid import UUID
 
 import pytest
+from dissect.util.stream import RelativeStream
 
-from dissect.eventlog.bxml import Bxml, BxmlToken
-from dissect.eventlog.exceptions import BxmlException
+from dissect.eventlog.bxml import parse_bxml
+from dissect.eventlog.bxml.bxml import (
+    Bxml,
+    BxmlStream,
+    Descriptor,
+    Element,
+    EvtxNameReader,
+    Template,
+    Value,
+    create_record,
+)
+from dissect.eventlog.bxml.c_bxml import BXML_TOKEN, BXML_TYPE
+from tests.conftest import absolute_path
 
 if TYPE_CHECKING:
-    from types import FunctionType
+    from collections.abc import Iterator
 
 
-@pytest.mark.parametrize(
-    ("token", "mocked_method"),
-    [
-        (BxmlToken.BXML_START_ELEMENT, Bxml.parse_start_element),
-        (BxmlToken.BXML_VALUE, Bxml.read_value),
-        (BxmlToken.BXML_ATTRIBUTE, Bxml.read_attribute),
-        (BxmlToken.BXML_TOKEN_CHAR_REFERENCE, Bxml.read_char_reference),
-        (BxmlToken.BXML_TOKEN_ENTITY_REFERENCE, Bxml.read_entity_reference),
-        (BxmlToken.BXML_TEMPLATE_INSTANCE, Bxml.read_template_instance),
-        (BxmlToken.BXML_TOKEN_NORMAL_SUBSTITUTION, Bxml.substitute_token_and_add_to_template),
-        (BxmlToken.BXML_TOKEN_OPTIONAL_SUBSTITUTION, Bxml.substitute_token_and_add_to_template),
-    ],
-)
-def test_bxml_read_token(token: BxmlToken, mocked_method: FunctionType) -> None:
-    bxml_obj = Bxml(bytes([token]), None)
-    with patch.object(Bxml, mocked_method.__name__) as obj:
-        assert bxml_obj.read_token() == obj.return_value
+@pytest.fixture
+def evtx_template() -> Iterator[BxmlStream]:
+    chunk_start = 4096
+    bxml_offset = 536
+    with absolute_path("_data/TestLogX.evtx").open("rb") as fh:
+        relative_stream = RelativeStream(fh, chunk_start + bxml_offset, size=1582)
+        bxml_stream = BxmlStream(relative_stream, EvtxNameReader(None), bxml_offset)
+        yield bxml_stream
 
 
-@pytest.mark.parametrize(
-    ("token", "expected_end"),
-    [
-        (BxmlToken.BXML_END, BxmlToken.BXML_END),
-        (BxmlToken.BXML_CLOSE_START_ELEMENT_TAG, BxmlToken.BXML_CLOSE_START_ELEMENT_TAG),
-        (BxmlToken.BXML_CLOSE_EMPTY_ELEMENT_TAG, BxmlToken.BXML_CLOSE_EMPTY_ELEMENT_TAG),
-        (BxmlToken.BXML_END_ELEMENT, BxmlToken.BXML_END_ELEMENT),
-        (BxmlToken.BXML_FRAGMENT_HEADER, BxmlToken.BXML_FRAGMENT_HEADER),
-    ],
-)
-def test_bxml_read_token_end_states(token: BxmlToken, expected_end: BxmlToken) -> None:
-    bxml_obj = Bxml(bytes([token, 0x0, 0x0, 0x0]), None)
-    assert bxml_obj.read_token() == expected_end
+def test_bxml_reader(evtx_template: BxmlStream) -> None:
+    # Uses bxml_offset as its base
+    assert evtx_template.seek(0) == 536
+    assert evtx_template.seek(536) == 536
+    assert evtx_template.current() is None
+
+    # Check whether current gets updated
+    assert evtx_template.next().token == BXML_TOKEN.FRAGMENT_HEADER
+    assert evtx_template.current().token == BXML_TOKEN.FRAGMENT_HEADER
+
+    # Check if reading includes the peeked element (0x0F)
+    evtx_template.seek(0)
+    assert evtx_template.current() is None
+    assert evtx_template.peek_next().token == BXML_TOKEN.FRAGMENT_HEADER
+    assert evtx_template.read(10) == b"\x0f\x01\x01\x00\x0c\x01_fl@"
+    assert evtx_template.current() is None
+
+    # Check whether the internal queue gets used
+    evtx_template.seek(0)
+    assert evtx_template.current() is None
+    assert evtx_template.peek_next().token == BXML_TOKEN.FRAGMENT_HEADER
+    assert evtx_template.current() is None
+    assert evtx_template.next().token == BXML_TOKEN.FRAGMENT_HEADER
+    assert evtx_template.current().token == BXML_TOKEN.FRAGMENT_HEADER
 
 
-def test_bxml_read_unknown_token() -> None:
-    bxml_obj = Bxml(bytes([0x10]), None)
-    with pytest.raises(BxmlException):
-        bxml_obj.read_token()
+def test_read_template(evtx_template: BxmlStream) -> None:
+    # Template elements itself are still empty
+    bxml = Bxml()
+    temp = bxml.parse(evtx_template)
+
+    assert isinstance(temp, Template)
+    assert temp.identifier == 1080845919
+    assert temp.uuid == UUID("406c665f-7934-5303-7648-8e8950058505")
+    assert temp.root is not None
+
+    assert temp.identifier in bxml.templates
 
 
-def test_bxml_substitution() -> None:
-    mocked_template = Mock()
-    bxml_obj = Bxml(BytesIO(b"\x01\x00\x00"), Mock())
+def test_read_element(evtx_template: BxmlStream) -> None:
+    bxml = Bxml()
+    temp: Template = bxml.parse(evtx_template)
+    elem = temp.root
 
-    sub = bxml_obj.substitute_token_and_add_to_template(mocked_template)
+    assert isinstance(elem, Element)
+    assert elem.tag == "Event"
+    assert elem.attributes["xmlns"].value == "http://schemas.microsoft.com/win/2004/08/events/event"
 
-    assert sub.sub_id == 0x1
-    mocked_template.add_sub.assert_called_with(0x1, sub)
+    assert elem is not None
+    assert len(elem.children) == 1
+    assert elem.children[0].tag == "System"
 
-
-def test_value_text() -> None:
-    bxml_obj = Bxml(b"\x05\x00h\x00e\x00l\x00l\x00o\x00", None)
-    assert bxml_obj._read_string_value(False, Mock()) == "hello"
-
-
-@patch.object(Bxml, Bxml.read_token.__name__, return_value=" World")
-def test_value_more(mock: Mock) -> None:
-    bxml_obj = Bxml(b"\x05\x00H\x00e\x00l\x00l\x00o\x00", None)
-    assert bxml_obj._read_string_value(True, Mock()) == "Hello World"
-
-
-@patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="data")
-def test_read_tag_and_attributes(mocked_read: Mock) -> None:
-    tag = Bxml(None, None)._read_tag_and_attributes(False, Mock())
-    assert tag.name == mocked_read.return_value
-    assert len(tag.attributes) == 0
-
-
-@patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="data")
-def test_read_tag_and_attributes_attributes(mocked_tag: Mock) -> None:
-    with patch.object(Bxml, Bxml._read_attributes.__name__) as attributes:
-        attributes.return_value = [("name", "test")]
-        bxml_obj = Bxml(None, None)
-        tag = bxml_obj._read_tag_and_attributes(True, Mock())
-        assert tag.name == mocked_tag.return_value
-        assert tag.attributes["name"] == "test"
+    children = [
+        "Provider",
+        "EventID",
+        "Version",
+        "Level",
+        "Task",
+        "Opcode",
+        "Keywords",
+        "TimeCreated",
+        "EventRecordID",
+        "Correlation",
+        "Execution",
+        "Channel",
+        "Computer",
+        "Security",
+    ]
+    assert children == [_elem.tag for _elem in elem.children[0].children]
 
 
-@pytest.mark.parametrize(
-    ("side_effects", "expected_length"),
-    [
-        (["children_tag", BxmlToken.BXML_END_ELEMENT], 1),
-        (["children_tag", "children_tag", BxmlToken.BXML_END_ELEMENT], 2),
-        (["children_tag", BxmlToken.BXML_END_ELEMENT, "children_tag"], 1),
-    ],
-)
-@patch.object(Bxml, Bxml.read_token.__name__)
-def test_read_children(mocked_token: Mock, side_effects: list[str | BxmlToken], expected_length: int) -> None:
-    mocked_token.side_effect = side_effects
-    bxml_obj = Bxml(None, None)
-    children = list(bxml_obj._read_children(Mock()))
-    assert len(children) == expected_length
+def test_invalid_states(evtx_template: BxmlStream) -> None:
+    bxml = Bxml()
+    # Seek end element without a start element
+    evtx_template.seek(867)
+    with pytest.raises(RuntimeError, match="Cannot end an element if it never started"):
+        bxml.parse(evtx_template)
+
+    # FInd a substitution without a template
+    evtx_template.seek(947)
+    with pytest.raises(RuntimeError, match="Cannot use a substitution without a template"):
+        bxml.parse(evtx_template)
+
+    # Seek start of a value without parsing an element
+    evtx_template.seek(1579)
+    with pytest.raises(RuntimeError, match="Cannot parse value for an undefined element"):
+        bxml.parse(evtx_template)
 
 
-@pytest.mark.parametrize(
-    ("bxml_data", "expected_output"),
-    [
-        (b"\x01\x01", "101"),
-        (b"\xde\xad\xbe\xef", "adde"),
-    ],
-)
-def text_bxml_char_reference(bxml_data: bytes, expected_output: str) -> None:
-    bxml_obj = Bxml(bxml_data, None)
-    assert bxml_obj.read_char_reference() == "&x" + expected_output
+def test_unexpected_end() -> None:
+    # Create a start of element then a EOF
+    _binary = bytes.fromhex(
+        "01      "  # Start element
+        "DEADBEEF"  # Size of element
+        "09000000"  # offset to the name of the element
+        "00000000"  # BXML_NAME: unknown
+        "FFFF    "  #            hash
+        "0200    "  #            size
+        "41004100"  #            "AAAA"
+        "0000    "  #            padding
+        "02      "  # End element
+        "00      "  # End bxml
+    )
+
+    stream = BxmlStream(BytesIO(_binary), EvtxNameReader(None))
+    bxml = Bxml()
+
+    with pytest.raises(RuntimeError, match="Found an unexpected end of the bxml stream"):
+        bxml.parse(stream)
 
 
-@pytest.mark.parametrize("data", [b"\x01", b"\x01\x00"])
-@patch.object(Bxml, Bxml._read_string_value.__name__)
-def test_bxml_value(mocked_string: Mock, data: bytes) -> None:
-    bxml_obj = Bxml(data, None)
-    assert mocked_string.return_value == bxml_obj.read_value(Mock(), Mock())
+def test_read_descriptors(evtx_template: BxmlStream) -> None:
+    bxml = Bxml()
+    _temp: Template = bxml.parse(evtx_template)
+
+    descriptors = Descriptor.read_descriptors(evtx_template)
+
+    assert len(descriptors) == 20
+    assert descriptors[0].type == BXML_TYPE.UINT8
+    assert descriptors[0].value == 4
+    assert descriptors[6].type == BXML_TYPE.FILETIME
+    assert descriptors[6].value == datetime(2021, 7, 22, 15, 44, 21, 416718, tzinfo=timezone.utc)
+    assert descriptors[-1].type == BXML_TYPE.BINXML
+
+    # parse the bxml underneath
+    bxml_desc = descriptors[-1]
+    evtx_template.seek(bxml_desc.offset)
+    _temp1: Template = bxml.parse(evtx_template)
+
+    desc1 = Descriptor.read_descriptors(evtx_template)
+    assert len(desc1) == 3
+    assert desc1[0].type == BXML_TYPE.STRING
+    assert desc1[0].is_array is True
+    assert desc1[0].value == "Test log message, information"
 
 
-@pytest.mark.parametrize("data", [b"\x02", b"\x03"])
-def test_bxml_value_failed(data: bytes) -> None:
-    bxml_obj = Bxml(data, None)
-    with pytest.raises(BxmlException):
-        bxml_obj.read_value(Mock(), Mock())
+def test_create_record(evtx_template: BxmlStream) -> None:
+    bxml = Bxml()
+    temp: Template = bxml.parse(evtx_template)
+
+    descriptors = Descriptor.read_descriptors(evtx_template)
+    record = create_record(evtx_template, bxml, temp.root, descriptors)
+
+    assert isinstance(record["Event_xmlns"], Value)
+    assert record["Event_xmlns"].value == "http://schemas.microsoft.com/win/2004/08/events/event"
+    assert isinstance(record["Binary"], Descriptor)
+    assert record["Binary"].value is None
 
 
-def test_parse_entity_reference() -> None:
-    with patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="Hello"):
-        assert Bxml(None, None).read_entity_reference(False, Mock()) == "&Hello;"
+def test_binxml_evtx(evtx_template: BxmlStream) -> None:
+    """Test the whole chain with parse_bxml."""
+    bxml = Bxml()
+    record = next(parse_bxml(evtx_template, bxml), {})
 
+    assert record["Provider_Name"].value == "TestAppX"
+    assert record["EventID"].value == 1
+    assert record["EventID_Qualifiers"].value == 0
+    assert record["Version"].value == 0
+    assert record["Level"].value == 4
+    assert record["Task"].value == 1
+    assert record["Opcode"].value == 0
+    assert record["Keywords"].value == "0x80000000000000"
+    assert str(record["TimeCreated_SystemTime"].value) == "2021-07-22 15:44:21.416718+00:00"
+    assert record["EventRecordID"].value == 1
+    assert record["Correlation_ActivityID"].value is None
+    assert record["Correlation_RelatedActivityID"].value is None
+    assert record["Execution_ProcessID"].value == 0
+    assert record["Execution_ThreadID"].value == 0
+    assert record["Channel"].value == "TestLogX"
+    assert record["Computer"].value == "DESKTOP-PJOQLJS"
+    assert record["Security_UserID"].value is None
 
-def test_parse_entity_more() -> None:
-    with (
-        patch.object(Bxml, Bxml.read_name_from_stream.__name__, return_value="Hello"),
-        patch.object(Bxml, Bxml.read_token.__name__, return_value=" World"),
-    ):
-        assert Bxml(None, None).read_entity_reference(True, Mock()) == "&Hello; World"
+    assert record["Data"].value == "Test log message, information"
+    assert record["Binary"].value is None
+
+    assert len(bxml.templates) == 2

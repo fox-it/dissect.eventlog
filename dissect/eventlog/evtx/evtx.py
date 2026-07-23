@@ -7,7 +7,13 @@ import logging
 import os
 from typing import TYPE_CHECKING, BinaryIO
 
-from dissect.eventlog.bxml import Bxml, BxmlSub, EvtxNameReader, parse_bxml
+from dissect.eventlog.bxml import (
+    Bxml,
+    BxmlStream,
+    EvtxNameReader,
+    parse_bxml,
+)
+from dissect.eventlog.bxml.c_bxml import BXML_TYPE
 from dissect.eventlog.evtx.c_evtx import c_evtx
 from dissect.eventlog.exceptions import MalformedElfChnkException
 
@@ -15,10 +21,20 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
 
+    from dissect.eventlog.bxml import Element
     from dissect.eventlog.utils import KeyValueCollection
 
 log = logging.getLogger(__name__)
 log.setLevel(os.getenv("DISSECT_LOG_EVTX", "CRITICAL"))
+
+
+def _data_func(elem: Element, result: KeyValueCollection) -> bool:
+    attributes = elem.attributes
+    check = elem.tag == "Data" and "Name" in attributes and len(attributes) == 1
+    if check:
+        result[attributes.get("Name").value] = elem.value
+
+    return check
 
 
 class ElfChnk:
@@ -35,9 +51,10 @@ class ElfChnk:
 
         self.empty = self.header.free_space_offset == 512
 
-        self.names = {}
         self.templates = {}
         self.data_offset = 0
+        self.bxml = Bxml()
+        self.reader = EvtxNameReader(self.stream)
 
     def read(self, records: bool = True) -> Iterator[KeyValueCollection]:
         try:
@@ -55,33 +72,21 @@ class ElfChnk:
                 if r.size != r.size_copy:
                     continue
 
-                self.data_offset = offset + 24
+                bxml_fh = BxmlStream(io.BytesIO(r.data), self.reader, bxml_offset=offset + 24)
+                rec = next(parse_bxml(bxml_fh, self.bxml, _data_func), {})
 
-                bxml_data = io.BytesIO(r.data)
-                bxml = Bxml(bxml_stream=bxml_data, elf_chunk_stream=self.stream)
-                bxml.data_offset = self.data_offset
-                bxml.templates = self.templates
-                bxml.template = None
-                bxml.set_name_reader(EvtxNameReader(bxml))
-                rec = parse_bxml(bxml)
-
+                time = rec.get("TimeCreated_SystemTime")
                 # Validate record
-                if (
-                    "TimeCreated_SystemTime" not in rec
-                    or (
-                        isinstance(rec["TimeCreated_SystemTime"], BxmlSub)
-                        and rec["TimeCreated_SystemTime"].get() is None
-                    )
-                    or rec["TimeCreated_SystemTime"] is None
-                ):
+                if time is None or time.type == BXML_TYPE.NULL:
                     log.warning("Missing timestamp in record")
                     continue
 
                 yield rec
-        except Exception:
+
+        except Exception as e:
             if not self.empty:
                 log.exception("Exception when processing chunk")
-                raise MalformedElfChnkException
+                raise MalformedElfChnkException from e
 
 
 class Evtx:
