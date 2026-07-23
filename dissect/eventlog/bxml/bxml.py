@@ -35,6 +35,26 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 
+def flatten_element(elem: Element, transform_func: Callable) -> KeyValueCollection:
+    elements = [elem]
+    result = KeyValueCollection()
+    while elements:
+        current = elements.pop()
+
+        if transform_func(current, result):
+            continue
+
+        elements.extend(current.children)
+        for name, attribute in current.attributes.items():
+            result[f"{current.tag}_{name}"] = attribute
+
+        if current.value is None:
+            continue
+
+        result[current.tag] = current.value
+    return result
+
+
 class Element:
     """A Bxml Element that provides a `tag` for a name and contains a value and a list of children."""
 
@@ -60,6 +80,8 @@ class Element:
         self.size: int = size
         self.tag: str = tag
         self.value: Value | Substitution | str = None
+
+    flatten = flatten_element
 
     def __repr__(self) -> str:
         suffix = "/" if self.empty else ""
@@ -100,6 +122,7 @@ class Template:
     """A representation of a template element that keeps track of the root element."""
 
     __slots__ = (
+        "_template",
         "identifier",
         "offset",
         "root",
@@ -113,6 +136,7 @@ class Template:
         self.size: int = size
         self.uuid: UUID = uuid
         self.root: Element = self._parse(fh, bxml)
+        self._template: KeyValueCollection = None
 
     def __repr__(self) -> str:
         return f"<Template {self.identifier=} {self.offset=:X}, {self.size=:X}>"
@@ -135,6 +159,13 @@ class Template:
         if fh.tell() > self.offset + self.size:
             raise RuntimeError("Read the offset too far")
         return elem
+
+    def flatten(self, transform_func: Callable) -> KeyValueCollection:
+        if self._template:
+            return self._template
+
+        self._template = flatten_element(self.root, transform_func)
+        return self._template
 
 
 class ValueDescriptor(Protocol):
@@ -222,6 +253,11 @@ class Descriptor:
         if result:
             self._value = result[0] if len(result) == 1 else result
         return self._value
+
+    def parse_binxml(self, bxml: Bxml) -> Template | Element:
+        """Parses its own content as a bxml element."""
+        self._fh.seek(self.offset)
+        return bxml.parse(self._fh)
 
     def _read_string(self) -> str | list[str] | bytes:
         data = self._fh.read(self.size)
@@ -477,6 +513,7 @@ class Bxml:
     code::
 
       > FRAGMENT
+      > TEMPLATE_REFERENCE
       > TEMPLATE_DEFINITION
         > START_ELEMENT
         > ATTRIBUTES
@@ -485,6 +522,11 @@ class Bxml:
         > BXML_END_ELEMENT
       > BXML_END
       > DESCRIPTORS
+      > DESCRIPTOR DATA
+      > TEMPLATE_REFERENCE
+      > DESCRIPTORS
+      > DESCRIPTOR_DATA
+      > ...
     """
 
     def __init__(self) -> None:
@@ -557,14 +599,14 @@ class Bxml:
         raise RuntimeError("Something went wrong, couldn't parse template at the current offset.")
 
 
-def _stub_function(elem: Element, result: KeyValueCollection, descriptors: list[Descriptor]) -> bool:
+def _stub_function(elem: Element, result: KeyValueCollection) -> bool:
     return False
 
 
 def parse_bxml(
     fh: BxmlStream,
     bxml: Bxml,
-    transform_func: Callable[[Element, KeyValueCollection, list[Descriptor]], bool] = _stub_function,
+    transform_func: Callable[[Element, KeyValueCollection], bool] = _stub_function,
 ) -> Iterator[KeyValueCollection]:
     """Parse the bxml stream.
 
@@ -578,31 +620,19 @@ def parse_bxml(
     fh.seek(curr_pos, io.SEEK_SET)
     while fh.tell() != size:
         elem = bxml.parse(fh)
-        elem, descriptors = _get_element(fh, elem)
+        descriptors = []
+        if isinstance(elem, Template):
+            descriptors = Descriptor.read_descriptors(fh)
         if output := create_record(fh, bxml, elem, descriptors, transform_func):
             yield output
-
-
-def _get_element(
-    fh: BxmlStream,
-    elem: Element | Template,
-) -> tuple[Element, list[Descriptor]]:
-    if isinstance(elem, Template):
-        _elem = elem.root
-        descriptors = Descriptor.read_descriptors(fh)
-    else:
-        _elem = elem
-        descriptors = []
-
-    return _elem, descriptors
 
 
 def create_record(
     fh: BxmlStream,
     bxml: Bxml,
-    elem: Element | None,
+    elem: Element | Template | None,
     descriptors: list[Descriptor],
-    transform_func: Callable[[Element, KeyValueCollection, list[Descriptor]], bool] = _stub_function,
+    transform_func: Callable[[Element, KeyValueCollection], bool] = _stub_function,
 ) -> KeyValueCollection:
     """Put attributes and values of a bxml element in a flat structure.
 
@@ -613,47 +643,26 @@ def create_record(
         descriptors: a list of descriptors to search through for substitutions
         transform_func: An optional function that transforms the input. Returns `True` if anything changed.
     """
-    result = KeyValueCollection()
-
     if elem is None:
-        return result
+        return KeyValueCollection()
 
-    elements = [elem]
-
-    while elements:
-        current = elements.pop()
-
-        elements.extend(current.children)
-
-        if transform_func(current, result, descriptors):
+    flattened = elem.flatten(transform_func)
+    result = flattened.copy()
+    for name, value in flattened.items():
+        if not isinstance(value, Substitution):
             continue
 
-        for name, attribute in current.attributes.items():
-            _elem = resolve_substitution(attribute, descriptors)
-
-            result[f"{current.tag}_{name}"] = _elem
-
-        if current.value is None:
+        descriptor = descriptors[value.id]
+        if value.type != BXML_TYPE.BINXML:
+            result[name] = descriptor
             continue
+        # Remove fragment from result
+        result.pop(name)
 
-        item = resolve_substitution(current.value, descriptors)
-
-        if item.type != BXML_TYPE.BINXML:
-            result[current.tag] = item
-            continue
-
-        # Parse subelement
-        # An attribute cannot be a BINXML element, so we get away to use offset here.
-        fh.seek(item.offset)
-
-        sub_elem = bxml.parse(fh)
-        _elem, _new_descriptors = _get_element(fh, sub_elem)
+        _elem = descriptor.parse_binxml(bxml)
+        _new_descriptors = []
+        if isinstance(_elem, Template):
+            _new_descriptors = Descriptor.read_descriptors(fh)
         result.update(create_record(fh, bxml, _elem, _new_descriptors, transform_func))
+
     return result
-
-
-def resolve_substitution(value: Substitution | Value, descriptors: list[Descriptor]) -> ValueDescriptor:
-    """Retrieves the descriptor if it encounters a substitution."""
-    if isinstance(value, Substitution):
-        return descriptors[value.id]
-    return value

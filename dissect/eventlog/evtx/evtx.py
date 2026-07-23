@@ -12,32 +12,27 @@ from dissect.eventlog.bxml import (
     BxmlStream,
     EvtxNameReader,
     parse_bxml,
-    resolve_substitution,
 )
 from dissect.eventlog.bxml.c_bxml import BXML_TYPE
 from dissect.eventlog.evtx.c_evtx import c_evtx
 from dissect.eventlog.exceptions import MalformedElfChnkException
-from dissect.eventlog.utils import KeyValueCollection
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
 
-    from dissect.eventlog.bxml import Descriptor, Element
+    from dissect.eventlog.bxml import Element
+    from dissect.eventlog.utils import KeyValueCollection
 
 log = logging.getLogger(__name__)
 log.setLevel(os.getenv("DISSECT_LOG_EVTX", "CRITICAL"))
 
 
-def _data_func(elem: Element, result: KeyValueCollection, descriptors: list[Descriptor]) -> bool:
+def _data_func(elem: Element, result: KeyValueCollection) -> bool:
     attributes = elem.attributes
     check = elem.tag == "Data" and "Name" in attributes and len(attributes) == 1
-    if check and "Data" not in result:
-        result["Data"] = KeyValueCollection()
-
     if check:
-        name = resolve_substitution(attributes.get("Name"), descriptors)
-        result["Data"][name.value] = resolve_substitution(elem.value, descriptors)
+        result[attributes.get("Name").value] = elem.value
 
     return check
 
@@ -86,17 +81,12 @@ class ElfChnk:
                     log.warning("Missing timestamp in record")
                     continue
 
-                data = rec.get("Data")
-                if isinstance(data, KeyValueCollection):
-                    rec.pop("Data")
-                    rec.update(data)
-
                 yield rec
 
-        except Exception:
+        except Exception as e:
             if not self.empty:
                 log.exception("Exception when processing chunk")
-                raise MalformedElfChnkException
+                raise MalformedElfChnkException from e
 
 
 class Evtx:

@@ -9,7 +9,6 @@ from dissect.eventlog.bxml.bxml import (
     Template,
     WevtNameReader,
     parse_bxml,
-    resolve_substitution,
 )
 from dissect.eventlog.bxml.c_bxml import BXML_TOKEN, BXML_TYPE
 
@@ -24,5 +23,4 @@ __all__ = (
     "Template",
     "WevtNameReader",
     "parse_bxml",
-    "resolve_substitution",
 )
