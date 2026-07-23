@@ -134,6 +134,17 @@ class BXML_TYPE(IntEnum):
     BINXML = 0x21
     EVTXML = 0x23
 
+    @classmethod
+    def _missing_(cls, value: int) -> Any:
+        """Create a new member if it was missing.
+
+        In some cases the value is win:<number>, this is to accomodate that edge case.
+        """
+        new_member = int.__new__(cls, value)
+        new_member._name_ = str(value)
+        new_member._value_ = value
+        return cls._value2member_map_.setdefault(value, new_member)
+
 
 def read_filetime(stream: BinaryIO) -> datetime:
     return wintimestamp(c_bxml.uint64_t(stream))
