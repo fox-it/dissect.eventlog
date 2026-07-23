@@ -200,4 +200,4 @@ class BXML_TYPE(IntEnum):
 
 STATIC_TYPE_LENGTHS: dict[BXML_TYPE, int]
 TYPE_READERS: dict[BXML_TYPE, Callable[[BinaryIO | bytes], Any]]
-TYPE_TRASFORMERS: dict[BXML_TYPE, Callable[[BinaryIO | bytes], str]]
+TYPE_TRASFORMERS: dict[BXML_TYPE, Callable[[BinaryIO | bytes], Any]]

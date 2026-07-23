@@ -208,19 +208,14 @@ class Descriptor:
             self._value = self._read_string()
             return self._value
 
-        type_reader = TYPE_READERS.get(self.type)
-        type_transformer = TYPE_TRANSFORMERS.get(self.type)
-        if type_transformer is None or type_reader is None:
+        type_reader = TYPE_TRANSFORMERS.get(self.type)
+        if type_reader is None:
             raise BxmlException(f"Unknown value type 0x{self.type:x}")
-
-        function = type_reader
-        if type_reader is not type_transformer:
-            function = type_transformer
 
         data = BytesIO(self._fh.read(self.size))
         result = []
         while data.tell() != self.size:
-            result.append(function(data))
+            result.append(type_reader(data))
             if not self.is_array:
                 break
 
