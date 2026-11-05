@@ -19,7 +19,7 @@ struct CRIM_HEADER {
 struct WEVT_TYPES {
     uint32    type;
     uint32    offset;
-}
+};
 
 struct WEVT {
     char        signature[4];
@@ -65,7 +65,7 @@ struct TEMP_DESCRIPTOR {
     uint32  unknown2;
     uint32  unknown3;
     uint32  data_offset;
-}
+};
 
 struct PRVA {
     uint32  unknown;
